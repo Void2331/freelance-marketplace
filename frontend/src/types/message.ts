@@ -27,3 +27,19 @@ export interface SendMessageRequest {
   message: string;
   attachments?: MessageAttachment[];
 }
+
+export interface MessageConversation {
+  projectId: string;
+  projectTitle: string;
+
+  participant: MessageUser;
+
+  lastMessage: {
+    message: string;
+    createdAt: string;
+    sender: string;
+  } | null;
+
+  unreadCount: number;
+  updatedAt: string;
+}

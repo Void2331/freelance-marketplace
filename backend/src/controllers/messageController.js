@@ -42,6 +42,18 @@ const markProjectMessagesRead = asyncHandler(async (req, res) => {
   });
 });
 
+const getMessageConversations = asyncHandler(async (req, res) => {
+  const conversations =
+    await messageService.getMessageConversations(
+      req.user._id
+    );
+
+  res.status(200).json({
+    success: true,
+    data: { conversations },
+  });
+});
+
 const getUnreadCount = asyncHandler(async (req, res) => {
   const count = await messageService.countUnreadMessages(
     req.user._id
@@ -58,4 +70,5 @@ module.exports = {
   getProjectMessages,
   markProjectMessagesRead,
   getUnreadCount,
+  getMessageConversations,
 };

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const AppError = require("../utils/AppError");
 const Project = require("../models/project.js");
 const Message = require("../models/message.js");
@@ -80,30 +81,156 @@ const getProjectMessages = async (
 ) => {
   await assertParticipant(projectId, userId);
 
-  const messages = await Message.find({
+  return Message.find({
     project: projectId,
   })
     .populate("sender", "name avatar")
     .populate("receiver", "name avatar")
     .sort({ createdAt: 1 });
+};
 
-  await Message.updateMany(
-    {
-      project: projectId,
-      receiver: userId,
-      readAt: null,
-    },
-    {
-      $set: { readAt: new Date() },
-    }
+/*
+====================================================
+GET MESSAGE CONVERSATIONS
+Returns one conversation summary per project the
+requesting user participates in. Projects without
+messages are omitted because they are not yet
+conversations.
+====================================================
+*/
+const getMessageConversations = async (userId) => {
+  const userObjectId = new mongoose.Types.ObjectId(
+    userId
   );
 
-  return messages;
+  const conversations = await Project.aggregate([
+    {
+      $match: {
+        $or: [
+          { client: userObjectId },
+          { freelancer: userObjectId },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "messages",
+        let: { projectId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $eq: ["$project", "$$projectId"],
+              },
+            },
+          },
+          { $sort: { createdAt: -1 } },
+          { $limit: 1 },
+          {
+            $project: {
+              _id: 0,
+              message: 1,
+              sender: 1,
+              createdAt: 1,
+            },
+          },
+        ],
+        as: "lastMessage",
+      },
+    },
+    {
+      $match: {
+        "lastMessage.0": { $exists: true },
+      },
+    },
+    {
+      $lookup: {
+        from: "messages",
+        let: { projectId: "$_id" },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  {
+                    $eq: ["$project", "$$projectId"],
+                  },
+                  { $eq: ["$receiver", userObjectId] },
+                  { $eq: ["$readAt", null] },
+                ],
+              },
+            },
+          },
+          { $count: "count" },
+        ],
+        as: "unread",
+      },
+    },
+    {
+      $set: {
+        lastMessage: {
+          $arrayElemAt: ["$lastMessage", 0],
+        },
+        unreadCount: {
+          $ifNull: [
+            { $arrayElemAt: ["$unread.count", 0] },
+            0,
+          ],
+        },
+        participantId: {
+          $cond: [
+            { $eq: ["$client", userObjectId] },
+            "$freelancer",
+            "$client",
+          ],
+        },
+      },
+    },
+    {
+      $lookup: {
+        from: "users",
+        localField: "participantId",
+        foreignField: "_id",
+        pipeline: [
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              avatar: 1,
+            },
+          },
+        ],
+        as: "participant",
+      },
+    },
+    {
+      $set: {
+        participant: {
+          $arrayElemAt: ["$participant", 0],
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        projectId: "$_id",
+        projectTitle: "$title",
+        participant: 1,
+        lastMessage: 1,
+        unreadCount: 1,
+        updatedAt: "$lastMessage.createdAt",
+      },
+    },
+    { $sort: { "lastMessage.createdAt": -1 } },
+  ]);
+
+  return conversations;
 };
 
 module.exports = {
   sendMessage,
   getProjectMessages,
+  getMessageConversations,
 };
 
 /*

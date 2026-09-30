@@ -3,7 +3,6 @@ import {
   BriefcaseBusiness,
   LogOut,
   Menu,
-  MessageSquare,
   Settings,
   UserRound,
 } from "lucide-react";
@@ -14,6 +13,7 @@ import {
 } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { MessagesButton } from "@/components/layout/messages-button";
 import { useAuth } from "@/features/auth/auth-context";
 
 function getNavigation(
@@ -124,13 +124,7 @@ export default function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-1">
-            <Link
-  to="/messages"
-  aria-label="Messages"
-  className="inline-flex h-9 w-9 items-center justify-center rounded-md text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
->
-  <MessageSquare className="h-5 w-5" />
-</Link>
+            <MessagesButton />
 
        <Link
   to="/notifications"

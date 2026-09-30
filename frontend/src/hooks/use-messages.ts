@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 
 import {
+  getMessageConversations,
   getProjectMessages,
   getUnreadMessageCount,
   markProjectMessagesRead,
@@ -14,12 +15,25 @@ import type { SendMessageRequest } from "@/types/message";
 
 export const messageKeys = {
   all: ["messages"] as const,
+
+  conversations: () =>
+    [...messageKeys.all, "conversations"] as const,
+
   project: (projectId: string) =>
     [...messageKeys.all, "project", projectId] as const,
+
+  unreadCount: () =>
+    [...messageKeys.all, "unread-count"] as const,
 };
 
-// Polls while the workroom is open so both participants see new
-// messages without needing real-time sockets wired up.
+export function useMessageConversations() {
+  return useQuery({
+    queryKey: messageKeys.conversations(),
+    queryFn: getMessageConversations,
+    refetchInterval: 10000,
+  });
+}
+
 export function useProjectMessages(projectId?: string) {
   return useQuery({
     queryKey: messageKeys.project(projectId ?? ""),
@@ -33,11 +47,20 @@ export function useMarkMessagesRead() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (projectId: string) => markProjectMessagesRead(projectId),
+    mutationFn: (projectId: string) =>
+      markProjectMessagesRead(projectId),
 
-    onSuccess: () => {
+    onSuccess: (_, projectId) => {
       queryClient.invalidateQueries({
-        queryKey: [...messageKeys.all, "unread-count"],
+        queryKey: messageKeys.project(projectId),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: messageKeys.conversations(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: messageKeys.unreadCount(),
       });
     },
   });
@@ -59,13 +82,17 @@ export function useSendMessage() {
       queryClient.invalidateQueries({
         queryKey: messageKeys.project(variables.projectId),
       });
+
+      queryClient.invalidateQueries({
+        queryKey: messageKeys.conversations(),
+      });
     },
   });
 }
 
 export function useUnreadMessageCount() {
   return useQuery({
-    queryKey: [...messageKeys.all, "unread-count"],
+    queryKey: messageKeys.unreadCount(),
     queryFn: getUnreadMessageCount,
     refetchInterval: 30000,
   });

@@ -27,7 +27,8 @@ const createAdmin = async () => {
       name: "Platform Admin",
       email: "joshuaezemihediwa@gmail.com",
       password: hashedPassword,
-      role: "ADMIN"
+      role: "ADMIN",
+      isEmailVerified: true,
     });
 
     console.log("Admin created successfully.");

@@ -8,6 +8,7 @@ const {
   getProjectMessages,
   markProjectMessagesRead,
   getUnreadCount,
+  getMessageConversations,
 } = require("../controllers/messageController.js");
 
 const {
@@ -39,6 +40,12 @@ router.get(
   "/messages/unread-count",
   protect,
   getUnreadCount
+);
+
+router.get(
+  "/messages/conversations",
+  protect,
+  getMessageConversations
 );
 
 module.exports = router;

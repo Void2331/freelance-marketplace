@@ -228,7 +228,7 @@ export default function ProjectWorkroomPage() {
         </div>
 
         <div>
-          <MessageThread projectId={project._id} currentUser={user} />
+          <MessageThread projectId={project._id} />
         </div>
       </div>
     </div>

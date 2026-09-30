@@ -2,6 +2,7 @@ import { api } from "./api";
 
 import type {
   Message,
+  MessageConversation,
   SendMessageRequest,
 } from "@/types/message";
 
@@ -16,6 +17,11 @@ interface MessagesResponse {
   data: { messages: Message[] };
 }
 
+interface ConversationsResponse {
+  success: boolean;
+  data: { conversations: MessageConversation[] };
+}
+
 export async function sendMessage(
   projectId: string,
   data: SendMessageRequest,
@@ -24,6 +30,7 @@ export async function sendMessage(
     `/projects/${projectId}/messages`,
     data,
   );
+
   return response.data.data.message;
 }
 
@@ -33,7 +40,18 @@ export async function getProjectMessages(
   const response = await api.get<MessagesResponse>(
     `/projects/${projectId}/messages`,
   );
+
   return response.data.data.messages;
+}
+
+export async function getMessageConversations(): Promise<
+  MessageConversation[]
+> {
+  const response = await api.get<ConversationsResponse>(
+    "/messages/conversations",
+  );
+
+  return response.data.data.conversations;
 }
 
 interface MarkReadResponse {
@@ -58,5 +76,6 @@ export async function getUnreadMessageCount(): Promise<number> {
   const response = await api.get<UnreadCountResponse>(
     "/messages/unread-count",
   );
+
   return response.data.data.count;
 }

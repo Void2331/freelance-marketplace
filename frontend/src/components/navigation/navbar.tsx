@@ -139,12 +139,6 @@ export default function Navbar() {
   <UserRound className="h-5 w-5" />
 </Link>
 
-<Link
-  to="/settings/profile"
-  className="rounded bg-black px-4 py-2 text-white"
->
-  TEST PROFILE
-</Link>
         </div>
       </div>
     </header>
