@@ -4,6 +4,8 @@ const Project = require("../models/project.js");
 const Milestone = require("../models/milestone.js");
 const Dispute = require("../models/Dispute");
 const ProjectActivity = require("../models/projectActivity.js");
+const User = require("../models/user.js");
+const emailService = require("../services/email.js");
 const asyncHandler = require("../utils/asyncHandler");
 
 const openDispute = async (
@@ -12,6 +14,10 @@ const openDispute = async (
   next
 ) => {
   const session = await mongoose.startSession();
+
+  // Captured inside the transaction, used after it commits to notify
+  // the other party.
+  let newDisputeInfo = null;
 
   try {
     const { milestoneId } = req.params;
@@ -78,6 +84,12 @@ const openDispute = async (
       const against = isClient
         ? milestone.freelancer
         : milestone.client;
+
+      newDisputeInfo = {
+        againstId: against,
+        title: milestone.title,
+        projectId: milestone.project,
+      };
 
       const disputes =
         await Dispute.create(
@@ -151,6 +163,21 @@ const openDispute = async (
         { session }
       );
     });
+
+    if (newDisputeInfo) {
+      const otherParty = await User.findById(
+        newDisputeInfo.againstId
+      ).select("name email");
+
+      if (otherParty) {
+        emailService.sendDisputeOpenedEmail(
+          otherParty.email,
+          otherParty.name,
+          newDisputeInfo.title,
+          newDisputeInfo.projectId
+        );
+      }
+    }
 
     return res.status(201).json({
       success: true,

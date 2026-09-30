@@ -3,6 +3,12 @@ const Job = require("../models/job");
 const Project = require("../models/project");
 const AppError = require("../utils/AppError");
 
+/*
+====================================================
+CREATE PROPOSAL
+====================================================
+*/
+
 const createProposal = async (
   jobId,
   freelancerId,
@@ -32,7 +38,7 @@ const createProposal = async (
 
   const existingProposal = await Proposal.findOne({
     job: jobId,
-    freelancer: freelancerId
+    freelancer: freelancerId,
   });
 
   if (existingProposal) {
@@ -45,11 +51,33 @@ const createProposal = async (
   const proposal = await Proposal.create({
     job: jobId,
     freelancer: freelancerId,
-    ...proposalData
+    ...proposalData,
   });
+
+  // Populate data required by the new-proposal email.
+  await proposal.populate([
+    {
+      path: "job",
+      populate: {
+        path: "client",
+        select: "name email",
+      },
+    },
+    {
+      path: "freelancer",
+      select: "name",
+    },
+  ]);
 
   return proposal;
 };
+
+
+/*
+====================================================
+GET JOB PROPOSALS
+====================================================
+*/
 
 const getJobProposals = async (
   jobId,
@@ -72,7 +100,7 @@ const getJobProposals = async (
   }
 
   const proposals = await Proposal.find({
-    job: jobId
+    job: jobId,
   })
     .populate(
       "freelancer",
@@ -83,11 +111,18 @@ const getJobProposals = async (
   return proposals;
 };
 
+
+/*
+====================================================
+GET MY PROPOSALS
+====================================================
+*/
+
 const getMyProposals = async (
   freelancerId
 ) => {
   const proposals = await Proposal.find({
-    freelancer: freelancerId
+    freelancer: freelancerId,
   })
     .populate(
       "job",
@@ -97,6 +132,55 @@ const getMyProposals = async (
 
   return proposals;
 };
+
+
+/*
+====================================================
+GET CLIENT PROPOSALS
+====================================================
+
+Returns all proposals submitted to jobs owned
+by the currently authenticated client.
+====================================================
+*/
+
+const getClientProposals = async (
+  clientId
+) => {
+  // Find jobs belonging to this client.
+  const jobs = await Job.find({
+    client: clientId,
+  }).select("_id");
+
+  const jobIds = jobs.map(
+    (job) => job._id
+  );
+
+  // Find proposals submitted to those jobs.
+  const proposals = await Proposal.find({
+    job: {
+      $in: jobIds,
+    },
+  })
+    .populate(
+      "freelancer",
+      "name email avatar bio skills hourlyRate"
+    )
+    .populate(
+      "job",
+      "title description budget budgetType deadline status client"
+    )
+    .sort({ createdAt: -1 });
+
+  return proposals;
+};
+
+
+/*
+====================================================
+GET PROPOSAL BY ID
+====================================================
+*/
 
 const getProposalById = async (
   proposalId,
@@ -141,9 +225,9 @@ const getProposalById = async (
 
 
 /*
-
+====================================================
 REJECT PROPOSAL
-
+====================================================
 */
 
 const rejectProposal = async (
@@ -187,37 +271,18 @@ const rejectProposal = async (
   return proposal;
 };
 
-const getClientProposals = async (clientId) => {
-  const jobs = await Job.find({ client: clientId }).select("_id");
 
-  const jobIds = jobs.map((job) => job._id);
-
-  if (jobIds.length === 0) {
-    return [];
-  }
-
-  const proposals = await Proposal.find({
-    job: { $in: jobIds },
-  })
-    .populate(
-      "freelancer",
-      "name email avatar bio skills hourlyRate"
-    )
-    .populate(
-      "job",
-      "title description budget budgetType deadline status client"
-    )
-    .sort({ createdAt: -1 });
-
-  return proposals;
-};
-
+/*
+====================================================
+EXPORTS
+====================================================
+*/
 
 module.exports = {
   createProposal,
   getJobProposals,
-  getClientProposals,
   getMyProposals,
+  getClientProposals,
   getProposalById,
-  rejectProposal
+  rejectProposal,
 };

@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const crypto = require("crypto");
 
 const proposalService = require("../services/proposal.js");
+const emailService = require("../services/email.js");
 const asyncHandler = require("../utils/asyncHandler");
 
 // Models
@@ -28,6 +29,14 @@ const createProposal = asyncHandler(
         req.user._id,
         req.body
       );
+
+    emailService.sendNewProposalEmail(
+      proposal.job.client.email,
+      proposal.job.client.name,
+      proposal.job.title,
+      proposal.freelancer.name,
+      proposal.job._id
+    );
 
     res.status(201).json({
       success: true,
@@ -74,6 +83,28 @@ const getMyProposals = asyncHandler(
   async (req, res) => {
     const proposals =
       await proposalService.getMyProposals(
+        req.user._id
+      );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        proposals,
+      },
+    });
+  }
+);
+
+/*
+====================================================
+GET CLIENT PROPOSALS
+====================================================
+*/
+
+const getClientProposals = asyncHandler(
+  async (req, res) => {
+    const proposals =
+      await proposalService.getClientProposals(
         req.user._id
       );
 
@@ -148,6 +179,7 @@ const acceptProposal = async (req, res, next) => {
     let createdContract = null;
     let createdMilestone = null;
     let createdPayment = null;
+    let acceptedProposal = null;
 
     await session.withTransaction(async () => {
       /*
@@ -166,6 +198,10 @@ const acceptProposal = async (req, res, next) => {
       if (!proposal) {
         throw new Error("Proposal not found");
       }
+
+      // Captured in the outer scope for the "proposal accepted" email,
+      // sent after the transaction commits.
+      acceptedProposal = proposal;
 
       /*
       ==================================================
@@ -578,6 +614,13 @@ const acceptProposal = async (req, res, next) => {
     ==================================================
     */
 
+    emailService.sendProposalAcceptedEmail(
+      acceptedProposal.freelancer.email,
+      acceptedProposal.freelancer.name,
+      acceptedProposal.job.title,
+      createdProject?._id
+    );
+
     return res.status(201).json({
       success: true,
 
@@ -638,26 +681,12 @@ const rejectProposal = asyncHandler(
   }
 );
 
-const getClientProposals = asyncHandler(async (req, res) => {
-  const proposals = await proposalService.getClientProposals(
-    req.user._id
-  );
-
-  res.status(200).json({
-    success: true,
-    data: {
-      proposals,
-    },
-  });
-});
-
-
 module.exports = {
   createProposal,
   getJobProposals,
   getMyProposals,
+  getClientProposals,
   getProposalById,
   acceptProposal,
   rejectProposal,
-  getClientProposals
 };

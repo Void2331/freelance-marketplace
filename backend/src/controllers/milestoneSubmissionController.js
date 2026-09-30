@@ -5,6 +5,8 @@ const Project = require("../models/project.js");
 const Contract = require("../models/contract.js");
 const MilestoneSubmission = require("../models/milestoneSubmission.js");
 const ProjectActivity = require("../models/projectActivity.js");
+const User = require("../models/user.js");
+const emailService = require("../services/email.js");
 
 const submitMilestone = async (
   req,
@@ -12,6 +14,11 @@ const submitMilestone = async (
   next
 ) => {
   const session = await mongoose.startSession();
+
+  // Captured inside the transaction, used after it commits to send the
+  // "milestone submitted" email without holding the transaction open
+  // for a network call.
+  let submittedMilestoneInfo = null;
 
   try {
     const { milestoneId } = req.params;
@@ -47,6 +54,12 @@ const submitMilestone = async (
           "Only the assigned freelancer can submit this milestone"
         );
       }
+
+      submittedMilestoneInfo = {
+        clientId: milestone.client,
+        title: milestone.title,
+        projectId: milestone.project,
+      };
 
       if (
         ![
@@ -128,6 +141,21 @@ const submitMilestone = async (
         { session }
       );
     });
+
+    if (submittedMilestoneInfo) {
+      const client = await User.findById(
+        submittedMilestoneInfo.clientId
+      ).select("name email");
+
+      if (client) {
+        emailService.sendMilestoneSubmittedEmail(
+          client.email,
+          client.name,
+          submittedMilestoneInfo.title,
+          submittedMilestoneInfo.projectId
+        );
+      }
+    }
 
     return res.status(201).json({
       success: true,

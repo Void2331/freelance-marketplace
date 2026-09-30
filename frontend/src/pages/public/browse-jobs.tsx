@@ -11,12 +11,29 @@ import type { BudgetType } from "@/types/job";
 type SortOption = "recent" | "highest" | "lowest";
 
 export default function BrowseJobs() {
-  const { data: jobs = [], isLoading, isError } = useJobs();
-
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [budgetTypes, setBudgetTypes] = useState<BudgetType[]>([]);
+  const [category, setCategory] = useState("");
   const [sort, setSort] = useState<SortOption>("recent");
+
+  // Unfiltered, just to build the category dropdown — it shouldn't
+  // shrink to only the currently-selected category.
+  const { data: allOpenJobs = [] } = useJobs();
+
+  const categories = useMemo(() => {
+    const distinct = new Set(
+      allOpenJobs.map((job) => job.category).filter((value): value is string => Boolean(value)),
+    );
+    return Array.from(distinct).sort();
+  }, [allOpenJobs]);
+
+  // The actual result set — category filtering happens server-side.
+  const {
+    data: jobs = [],
+    isLoading,
+    isError,
+  } = useJobs({ category: category || undefined });
 
   function toggleBudgetType(type: BudgetType) {
     setBudgetTypes((current) =>
@@ -106,6 +123,23 @@ export default function BrowseJobs() {
               </div>
 
               <div className="mt-6">
+                <p className="text-sm font-medium">Category</p>
+
+                <select
+                  className="mt-3 h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                  value={category}
+                  onChange={(event) => setCategory(event.target.value)}
+                >
+                  <option value="">All categories</option>
+                  {categories.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-6 border-t pt-6">
                 <p className="text-sm font-medium">Job type</p>
 
                 <div className="mt-3 space-y-2 text-sm text-zinc-600">

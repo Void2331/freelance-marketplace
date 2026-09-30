@@ -11,6 +11,7 @@ import { useCreateReview, useProjectReviews } from "@/hooks/use-reviews";
 import { reviewSchema, type ReviewFormValues } from "@/lib/validations/review";
 
 import type { AuthUser } from "@/types/auth";
+import type { Review } from "@/types/review";
 import { getErrorMessage } from "@/lib/errors";
 
 interface ReviewPanelProps {
@@ -18,12 +19,20 @@ interface ReviewPanelProps {
   currentUser: AuthUser | null;
 }
 
+const SUB_RATING_FIELDS = [
+  { key: "communicationRating", label: "Communication" },
+  { key: "qualityRating", label: "Quality of work" },
+  { key: "deadlineRating", label: "Met deadlines" },
+] as const;
+
 function StarRating({
   value,
   onChange,
+  size = "h-6 w-6",
 }: {
   value: number;
   onChange: (value: number) => void;
+  size?: string;
 }) {
   return (
     <div className="flex gap-1">
@@ -35,7 +44,7 @@ function StarRating({
           aria-label={`${star} star${star === 1 ? "" : "s"}`}
         >
           <Star
-            className={`h-6 w-6 ${
+            className={`${size} ${
               star <= value
                 ? "fill-yellow-400 text-yellow-400"
                 : "text-zinc-300"
@@ -43,6 +52,58 @@ function StarRating({
           />
         </button>
       ))}
+    </div>
+  );
+}
+
+function StaticStars({ value }: { value: number }) {
+  return (
+    <div className="flex">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Star
+          key={star}
+          className={`h-4 w-4 ${
+            star <= value
+              ? "fill-yellow-400 text-yellow-400"
+              : "text-zinc-300"
+          }`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ReviewCard({ review }: { review: Review }) {
+  const reviewer = typeof review.reviewer === "string" ? null : review.reviewer;
+
+  const subRatings = SUB_RATING_FIELDS.filter(
+    (field) => typeof review[field.key] === "number",
+  );
+
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold">
+          {reviewer?.name ?? "Project participant"}
+        </p>
+
+        <StaticStars value={review.rating} />
+      </div>
+
+      {subRatings.length > 0 && (
+        <div className="mt-3 grid grid-cols-3 gap-2 border-t pt-3">
+          {subRatings.map((field) => (
+            <div key={field.key}>
+              <p className="text-[11px] text-zinc-500">{field.label}</p>
+              <StaticStars value={review[field.key] as number} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {review.comment && (
+        <p className="mt-3 text-sm text-zinc-600">{review.comment}</p>
+      )}
     </div>
   );
 }
@@ -59,7 +120,16 @@ export function ReviewPanel({ projectId, currentUser }: ReviewPanelProps) {
     formState: { errors },
   } = useForm<ReviewFormValues>({
     resolver: zodResolver(reviewSchema),
-    defaultValues: { rating: 0, comment: "" },
+    // Sub-ratings default to undefined, not 0 — the schema requires
+    // 1-5 *when present*, so a literal 0 here would fail validation
+    // the moment the reviewer submits without touching one.
+    defaultValues: {
+      rating: 0,
+      communicationRating: undefined,
+      qualityRating: undefined,
+      deadlineRating: undefined,
+      comment: "",
+    },
   });
 
   const rating = watch("rating");
@@ -79,11 +149,15 @@ export function ReviewPanel({ projectId, currentUser }: ReviewPanelProps) {
       });
 
       toast.success("Review submitted");
-      reset({ rating: 0, comment: "" });
+      reset({
+        rating: 0,
+        communicationRating: undefined,
+        qualityRating: undefined,
+        deadlineRating: undefined,
+        comment: "",
+      });
     } catch (error) {
-      toast.error(
-        getErrorMessage(error, "Unable to submit review"),
-      );
+      toast.error(getErrorMessage(error, "Unable to submit review"));
     }
   }
 
@@ -96,66 +170,56 @@ export function ReviewPanel({ projectId, currentUser }: ReviewPanelProps) {
         <div className="h-16 animate-pulse rounded-lg bg-zinc-100" />
       ) : (
         <div className="space-y-5">
-          {reviews.map((review) => {
-            const reviewer =
-              typeof review.reviewer === "string" ? null : review.reviewer;
-
-            return (
-              <div key={review._id} className="rounded-lg border p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">
-                    {reviewer?.name ?? "Project participant"}
-                  </p>
-
-                  <div className="flex">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star
-                        key={star}
-                        className={`h-4 w-4 ${
-                          star <= review.rating
-                            ? "fill-yellow-400 text-yellow-400"
-                            : "text-zinc-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                {review.comment && (
-                  <p className="mt-2 text-sm text-zinc-600">
-                    {review.comment}
-                  </p>
-                )}
-              </div>
-            );
-          })}
+          {reviews.map((review) => (
+            <ReviewCard key={review._id} review={review} />
+          ))}
 
           {!myReview && (
             <form
               onSubmit={handleSubmit(onSubmit)}
-              className="space-y-3 rounded-lg border border-dashed p-4"
+              className="space-y-4 rounded-lg border border-dashed p-4"
             >
-              <p className="text-sm font-medium">Leave a review</p>
+              <div>
+                <p className="text-sm font-medium">Overall rating</p>
 
-              <StarRating
-                value={rating ?? 0}
-                onChange={(value) =>
-                  setValue("rating", value, { shouldValidate: true })
-                }
-              />
+                <div className="mt-1.5">
+                  <StarRating
+                    value={rating ?? 0}
+                    onChange={(value) =>
+                      setValue("rating", value, { shouldValidate: true })
+                    }
+                  />
+                </div>
 
-              {errors.rating && (
-                <p className="text-xs text-red-600">
-                  {errors.rating.message}
-                </p>
-              )}
+                {errors.rating && (
+                  <p className="mt-1 text-xs text-red-600">
+                    {errors.rating.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid gap-3 border-t pt-4 sm:grid-cols-3">
+                {SUB_RATING_FIELDS.map((field) => (
+                  <div key={field.key}>
+                    <p className="text-xs text-zinc-500">{field.label}</p>
+
+                    <div className="mt-1.5">
+                      <StarRating
+                        size="h-4 w-4"
+                        value={watch(field.key) ?? 0}
+                        onChange={(value) =>
+                          setValue(field.key, value, { shouldValidate: true })
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
 
               <Textarea
                 placeholder="How did the project go?"
                 value={comment ?? ""}
-                onChange={(event) =>
-                  setValue("comment", event.target.value)
-                }
+                onChange={(event) => setValue("comment", event.target.value)}
               />
 
               <Button

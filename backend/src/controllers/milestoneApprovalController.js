@@ -6,6 +6,8 @@ const Wallet = require("../models/wallet.js");
 const WalletTransaction = require("../models/WalletTransaction.js");
 const MilestoneSubmission = require("../models/milestoneSubmission.js");
 const ProjectActivity = require("../models/projectActivity.js");
+const User = require("../models/user.js");
+const emailService = require("../services/email.js");
 
 const {
   checkProjectCompletion,
@@ -17,6 +19,9 @@ const approveMilestone = async (
   next
 ) => {
   const session = await mongoose.startSession();
+
+  // Captured inside the transaction, used after it commits.
+  let releasedMilestoneInfo = null;
 
   try {
     const { milestoneId } = req.params;
@@ -108,6 +113,18 @@ const approveMilestone = async (
             "Funded payment not found"
           );
         }
+
+        // Captured for the "payment released" email, sent after the
+        // transaction commits.
+        releasedMilestoneInfo = {
+          freelancerId: milestone.freelancer,
+          title: milestone.title,
+          currency: milestone.currency,
+          amount:
+            payment.freelancerNetAmount ||
+            payment.amount,
+          projectId: milestone.project,
+        };
 
         /*
          * Get freelancer wallet
@@ -326,6 +343,23 @@ const approveMilestone = async (
         );
       }
     );
+
+    if (releasedMilestoneInfo) {
+      const freelancer = await User.findById(
+        releasedMilestoneInfo.freelancerId
+      ).select("name email");
+
+      if (freelancer) {
+        emailService.sendMilestoneApprovedEmail(
+          freelancer.email,
+          freelancer.name,
+          releasedMilestoneInfo.title,
+          releasedMilestoneInfo.amount,
+          releasedMilestoneInfo.currency,
+          releasedMilestoneInfo.projectId
+        );
+      }
+    }
 
     return res.status(200).json({
       success: true,

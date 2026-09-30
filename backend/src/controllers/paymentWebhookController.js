@@ -8,6 +8,8 @@ const Contract = require("../models/contract.js");
 const Wallet = require("../models/wallet.js");
 const WalletTransaction = require("../models/WalletTransaction.js");
 const ProjectActivity = require("../models/projectActivity.js");
+const User = require("../models/user.js");
+const emailService = require("../services/email.js");
 
 const {
   verifyPaystackSignature,
@@ -547,6 +549,30 @@ const handlePaystackWebhook = async (req, res) => {
     } finally {
       await session.endSession();
     }
+
+    // "Milestone funded" email — Paystack webhooks get no retry credit
+    // for a slow response, so this runs after the transaction and isn't
+    // awaited.
+    User.findById(milestone.freelancer)
+      .select("name email")
+      .then((freelancer) => {
+        if (!freelancer) return;
+
+        emailService.sendMilestoneFundedEmail(
+          freelancer.email,
+          freelancer.name,
+          milestone.title,
+          milestone.amount,
+          milestone.currency,
+          project._id
+        );
+      })
+      .catch((error) => {
+        console.error(
+          "Failed to send milestone-funded email:",
+          error.message
+        );
+      });
 
     /*
      * 13. TELL PAYSTACK WE SUCCESSFULLY
