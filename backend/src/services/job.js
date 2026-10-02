@@ -254,6 +254,7 @@ const adminRemoveJob = async (jobId) => {
 module.exports = {
   createJob,
   adminRemoveJob,
+  getAllJobsAdmin,
   getJobs,
   getMyJobs,
   getJobById,

@@ -14,8 +14,8 @@ const paystack = axios.create({
 
   headers: {
     Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-    "Content-Type": "application/json"
-  }
+    "Content-Type": "application/json",
+  },
 });
 
 /*
@@ -29,9 +29,7 @@ const calculateFees = (amount) => {
     Number(process.env.PLATFORM_CLIENT_FEE_PERCENT) || 5;
 
   const freelancerFeePercent =
-    Number(
-      process.env.PLATFORM_FREELANCER_FEE_PERCENT
-    ) || 5;
+    Number(process.env.PLATFORM_FREELANCER_FEE_PERCENT) || 5;
 
   const clientFee =
     amount * (clientFeePercent / 100);
@@ -45,7 +43,7 @@ const calculateFees = (amount) => {
   return {
     clientFee,
     freelancerFee,
-    freelancerNetAmount
+    freelancerNetAmount,
   };
 };
 
@@ -57,7 +55,7 @@ const calculateFees = (amount) => {
 
 const initializeMilestonePayment = async ({
   milestoneId,
-  clientId
+  clientId,
 }) => {
   const milestone = await Milestone.findById(
     milestoneId
@@ -97,9 +95,9 @@ const initializeMilestonePayment = async ({
       status: {
         $in: [
           "PROCESSING",
-          "FUNDED"
-        ]
-      }
+          "FUNDED",
+        ],
+      },
     });
 
   if (existingPayment) {
@@ -125,6 +123,19 @@ const initializeMilestonePayment = async ({
   const totalClientCharge =
     milestone.amount + fees.clientFee;
 
+  /*
+  |--------------------------------------------------------------------------
+  | Generate Payment Reference
+  |--------------------------------------------------------------------------
+  |
+  | One reference is used consistently for:
+  |
+  | 1. Internal Payment.reference
+  | 2. Payment.providerReference
+  | 3. Paystack transaction reference
+  |
+  */
+
   const reference =
     `FM-${milestone._id}-${crypto
       .randomBytes(6)
@@ -137,19 +148,34 @@ const initializeMilestonePayment = async ({
   */
 
   const payment = await Payment.create({
+    // Internal payment reference
+    reference,
+
     project: milestone.project._id,
+
     milestone: milestone._id,
+
     client: milestone.client,
+
     freelancer: milestone.freelancer,
+
     amount: milestone.amount,
+
     clientFee: fees.clientFee,
+
     freelancerFee: fees.freelancerFee,
+
     freelancerNetAmount:
       fees.freelancerNetAmount,
+
     currency: milestone.currency,
+
     status: "PROCESSING",
+
     provider: "PAYSTACK",
-    providerReference: reference
+
+    // Paystack transaction reference
+    providerReference: reference,
   });
 
   /*
@@ -172,13 +198,16 @@ const initializeMilestonePayment = async ({
 
     metadata: {
       paymentId: payment._id,
+
       paymentReference:
-        payment.providerReference,
+        payment.reference,
+
       amount:
         payment.amount,
+
       currency:
-        payment.currency
-    }
+        payment.currency,
+    },
   });
 
   /*
@@ -201,7 +230,8 @@ const initializeMilestonePayment = async ({
 
         reference,
 
-        callback_url: `${process.env.CLIENT_URL}/payment/callback`,
+        callback_url:
+          `${process.env.CLIENT_URL}/payment/callback`,
 
         metadata: {
           paymentId:
@@ -214,8 +244,8 @@ const initializeMilestonePayment = async ({
             milestone.project._id.toString(),
 
           clientId:
-            clientId.toString()
-        }
+            clientId.toString(),
+        },
       }
     );
 
@@ -236,7 +266,7 @@ const initializeMilestonePayment = async ({
       clientFee:
         fees.clientFee,
 
-      totalClientCharge
+      totalClientCharge,
     };
   } catch (error) {
     /*
@@ -281,7 +311,14 @@ const initializeMilestonePayment = async ({
 
 const verifyPayment = async (reference) => {
   const payment = await Payment.findOne({
-    providerReference: reference
+    $or: [
+      {
+        reference,
+      },
+      {
+        providerReference: reference,
+      },
+    ],
   });
 
   if (!payment) {
@@ -344,13 +381,13 @@ const verifyPayment = async (reference) => {
         transaction.currency,
 
       id:
-        transaction.id
-    }
+        transaction.id,
+    },
   };
 };
 
 module.exports = {
   initializeMilestonePayment,
   calculateFees,
-  verifyPayment
+  verifyPayment,
 };

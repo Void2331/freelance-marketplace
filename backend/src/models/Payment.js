@@ -22,13 +22,12 @@ const paymentSchema = new mongoose.Schema(
       index: true,
     },
 
- milestone: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Milestone",
-  required: true,
-  unique: true,
-  index: true,
-},
+    milestone: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Milestone",
+      required: true,
+      index: true,
+    },
 
     // =========================
     // USERS
@@ -145,7 +144,6 @@ const paymentSchema = new mongoose.Schema(
       default: null,
     },
 
-
     // =========================
     // PROVIDER / WEBHOOK DATA
     // =========================
@@ -158,8 +156,6 @@ const paymentSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-
 
 module.exports =
   mongoose.models.Payment ||
