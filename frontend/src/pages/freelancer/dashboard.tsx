@@ -31,7 +31,9 @@ export default function FreelancerDashboard() {
   const { data: projects = [], isLoading: projectsLoading } = useMyProjects();
   const { data: proposals = [], isLoading: proposalsLoading } =
     useMyProposals();
-  const { data: jobs = [], isLoading: jobsLoading } = useJobs();
+  const { data, isLoading: jobsLoading } = useJobs();
+
+  const jobs = data?.data || [];
 
   const firstName = user?.name?.split(" ")[0];
   const currency = wallet?.currency ?? "NGN";

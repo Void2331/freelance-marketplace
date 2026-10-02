@@ -27,14 +27,14 @@ Supports optional ?category= and ?skill= filters
 ====================================================
 */
 const getJobs = asyncHandler(async (req, res) => {
-  const jobs = await jobService.getJobs({
+  const jobs = await jobService.getJobs(req.query,{
     category: req.query.category,
     skill: req.query.skill,
   });
 
   res.status(200).json({
     success: true,
-    data: { jobs },
+    ...jobs,
   });
 });
 

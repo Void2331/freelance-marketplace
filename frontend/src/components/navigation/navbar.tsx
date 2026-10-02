@@ -28,8 +28,7 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link
-          to="/"
+        <div
           className="flex shrink-0 items-center gap-2"
         >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-950 text-white">
@@ -39,7 +38,7 @@ export default function Navbar() {
           <span className="text-lg font-bold tracking-tight">
             FreelanceHub
           </span>
-        </Link>
+        </div>
 
         {/* Desktop navigation */}
         <nav className="hidden items-center gap-6 md:flex">
@@ -108,7 +107,7 @@ export default function Navbar() {
           {/* Login */}
           <Link
             to="/login"
-            className="hidden text-sm font-medium text-zinc-700 hover:text-zinc-950 sm:block"
+            className="hidden text-sm font-medium text-zinc-700 mr-1 hover:text-zinc-950 sm:block"
           >
             Log in
           </Link>

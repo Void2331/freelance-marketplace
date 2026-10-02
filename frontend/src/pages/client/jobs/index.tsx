@@ -31,8 +31,10 @@ import {
 import { getErrorMessage } from "@/lib/errors";
 
 export default function ClientJobsPage() {
-  const { data: jobs = [], isLoading } =
+  const { data, isLoading } =
     useMyJobs();
+
+    const jobs = data?.data || [];
 
   const deleteMutation =
     useDeleteJob();

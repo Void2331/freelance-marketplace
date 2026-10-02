@@ -22,7 +22,19 @@ BROWSE OPEN JOBS
 Supports optional category / skill filters
 ====================================================
 */
-const getJobs = async (filters = {}) => {
+const getJobs = async (query,filters = {}) => {
+  let { limit , page } = query
+
+  if(!limit) {
+    limit = 10
+  }
+
+  if(!page) {
+    page = 1
+  }
+
+  const skip = (page - 1) * limit;
+
   const filter = { status: "OPEN" };
 
   if (filters.category) {
@@ -33,11 +45,71 @@ const getJobs = async (filters = {}) => {
     filter.skills = filters.skill;
   }
 
-  const jobs = await Job.find(filter)
-    .populate("client", "name avatar location")
-    .sort({ createdAt: -1 });
+  const returnData = await Job.aggregate([
+  // 1. Filter your documents first
+  { $match: filter },
 
-  return jobs;
+  // 2. Split the pipeline into parallel tracks
+  {
+    $facet: {
+      totalCount: [
+        { $count: 'count' }
+      ],
+      pageData: [
+        { $sort: { createdAt: -1 } }, 
+        { $skip: JSON.parse(skip) },              
+        { $limit: JSON.parse(limit) },
+        
+         {
+          $lookup: {
+            from: 'users',      
+            localField: 'client',   
+            foreignField: '_id',
+            as: 'client',
+            pipeline: [{ $project: { name: 1, email: 1, avatar: 1 } }]      
+          }
+          },
+          
+           {
+          $unwind: {
+            path: '$User',
+            preserveNullAndEmptyArrays: true
+          }
+        },
+      ]
+    }
+  },
+
+  {
+    $project: {
+      data: '$pageData',
+      totalDocuments: { $ifNull: [{ $arrayElemAt: ['$totalCount.count', 0] }, 0] },
+      totalPages: {
+        $ceil: {
+          $divide: [
+            { $ifNull: [{ $arrayElemAt: ['$totalCount.count', 0] }, 0] },
+            JSON.parse(limit)
+          ]
+        }
+      },
+      'client.name': 1,
+      'client.avatar': 1,
+      'client.location': 1,
+      'client._id': 1
+    }
+  }
+]);
+
+  const jobs = {
+    data: returnData[0].data,
+    totalDocuments: returnData[0].totalDocuments,
+    totalPages: returnData[0].totalPages,
+    currentPage: page,
+  };
+
+  const {data, totalDocuments, totalPages, currentPage} = jobs;
+
+  return {data, totalDocuments, totalPages, currentPage};
 };
 
 /*

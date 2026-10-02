@@ -16,11 +16,11 @@ export interface JobClient {
   bio?: string;
 }
 
-export interface Job {
+export interface data {
   _id: string;
   client:
-    | string
-    | JobClient;
+    | "Client"
+    | JobClient[];
 
   title: string;
   description: string;

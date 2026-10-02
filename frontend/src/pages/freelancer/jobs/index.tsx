@@ -4,10 +4,20 @@ import {
 } from "lucide-react";
 
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
+
+import {
   Link,
 } from "react-router-dom";
 
 import {
+  memo,
+  useContext,
   useMemo,
   useState,
 } from "react";
@@ -31,22 +41,30 @@ import {
 import {
   useJobs,
 } from "@/hooks/use-jobs";
+import { PageContext } from "@/features/page/pageContext";
 
-export default function FreelancerJobsPage() {
+function FreelancerJobsPage() {
   const [search, setSearch] =
     useState("");
+
+  const {currentPage, setCurrentPage} = useContext(PageContext);
 
   const [category, setCategory] =
     useState("");
 
   const {
-    data: jobs = [],
+    data,
     isLoading,
     isError,
   } = useJobs({
     category:
       category || undefined,
+    page:
+      currentPage || 1,
   });
+
+  const jobs = data?.data || [];
+  const totalPages = data?.totalPages || 1;
 
   const filteredJobs =
     useMemo(() => {
@@ -212,6 +230,52 @@ export default function FreelancerJobsPage() {
           )}
         </div>
       )}
+
+      <div className="mt-6 flex items-center justify-center">
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious 
+              onClick={ () => {
+                setCurrentPage((prev) => prev > 0 ? prev - 1 : 1);
+              }} />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationNext 
+              onClick={ () => {
+                setCurrentPage((prev) => prev === totalPages ? totalPages : prev + 1);
+              }} />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      </div>
+        
     </div>
   );
 }
+
+
+export default memo(FreelancerJobsPage)
+
+/* <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious href="#" />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink href="#">1</PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink href="#" isActive>
+                2
+              </PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink href="#">3</PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationNext href="#" />
+            </PaginationItem>
+          </PaginationContent> */

@@ -20,16 +20,19 @@ import type {
   UpdateJobRequest,
 } from "@/types/job";
 
+
+type TJobFilters = {
+  category?: string;
+  skill?: string;
+  page?: number;
+};
 export const jobKeys = {
   all: ["jobs"] as const,
 
   lists: () =>
     [...jobKeys.all, "list"] as const,
 
-  browse: (filters?: {
-    category?: string;
-    skill?: string;
-  }) =>
+  browse: (filters?: TJobFilters) =>
     [...jobKeys.lists(), "browse", filters] as const,
 
   mine: () =>
@@ -42,10 +45,7 @@ export const jobKeys = {
     [...jobKeys.all, "detail", id] as const,
 };
 
-export function useJobs(filters?: {
-  category?: string;
-  skill?: string;
-}) {
+export function useJobs(filters?: TJobFilters){
   return useQuery({
     queryKey: jobKeys.browse(filters),
     queryFn: () => getJobs(filters),

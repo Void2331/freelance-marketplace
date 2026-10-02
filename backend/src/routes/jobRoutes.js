@@ -36,7 +36,7 @@ router.post(
 /*
   Anyone authenticated can browse open jobs
 */
-router.get("/", protect, getJobs);
+router.get("/", getJobs);
 
 /*
   Client views their own posted jobs

@@ -8,6 +8,9 @@ import { AuthProvider } from "@/features/auth/auth-context";
 
 import App from "./App";
 import "./index.css";
+import { UseSearchContext } from "./features/search/searchContextProvider";
+import SetPageContextProvider from "./features/page/setPageContextProvider";
+
 
 createRoot(
   document.getElementById("root")!,
@@ -16,7 +19,11 @@ createRoot(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <SetPageContextProvider>
+            <UseSearchContext>
+              <App />
+            </UseSearchContext>
+          </SetPageContextProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

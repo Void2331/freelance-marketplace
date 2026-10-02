@@ -1,14 +1,18 @@
 import {
   ArrowRight,
+  ArrowUpRight,
   CheckCircle2,
   Search,
   ShieldCheck,
   Sparkles,
   Users,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { useContext, useEffect, useRef, useState } from "react";
+import { SearchContextProvider } from "@/features/search/searchContext";
+import { StatusBadge } from "@/components/dashboard/status-badge";
 
 const categories = [
   "Web Development",
@@ -42,7 +46,38 @@ const benefits = [
   },
 ];
 
+const BASE_URL = import.meta.env.VITE_API_URL + '/jobs?limit=2';
+const options = {
+  method: "GET",
+  headers: {
+    'Content-Type': "application/json"
+  }
+}
+
 export default function Home() {
+  const [jobData,setJobData] = useState([])
+  const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null)
+  const {setSearchTerm, searchTerm} = useContext(SearchContextProvider)
+
+
+  
+  useEffect(()=>{
+    (async function getData() {
+      try {
+        const response = await fetch(BASE_URL,options)
+        if(!response.ok) throw new Error('Error getting data')
+        
+        const data = await response.json()
+
+        setJobData(data.data)
+      } catch (err) {
+        console.log(err.message)
+      }
+
+    }())
+  },[])
+
   return (
     <div>
       {/* Hero */}
@@ -98,14 +133,27 @@ export default function Home() {
                 <input
                   placeholder="Search for jobs, skills or services"
                   className="h-12 w-full bg-transparent px-3 text-sm text-zinc-950 outline-none placeholder:text-zinc-500"
+                  ref={inputRef}
+                  onChange={(e) => setSearchTerm(e.target.value) }
                 />
               </div>
 
               <Button
                 size="lg"
                 className="h-12 px-8"
+                onClick={() => { 
+                  if(searchTerm === '') {
+                    // console.log(inputRef.current!.value + ' ' + 'needs not be empty')
+                    return
+                  }else {
+                    // navigate('/jobs')
+                    console.log(searchTerm)
+                    inputRef.current!.value = ''
+                    setSearchTerm('')
+                  }
+                }}
               >
-                Search
+                 Search
               </Button>
             </div>
           </div>
@@ -115,7 +163,16 @@ export default function Home() {
       {/* Categories */}
       <section className="border-b">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap gap-3">
+          <div className="max-w-2xl mb-4">
+            <p className="text-sm font-semibold uppercase tracking-wider text-zinc-500">
+              Top Jobs
+            </p>
+
+            <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">
+              Get the Latest Job Posting around the Globe.
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-3 mb-6">
             {categories.map((category) => (
               <Link
                 key={category}
@@ -126,8 +183,86 @@ export default function Home() {
               </Link>
             ))}
           </div>
+          <div className="grid gap-4 lg:grid-cols-2">
+          {jobData?.map((job) => (
+                <article
+                  key={job._id}
+                  className="rounded-xl border bg-white p-5 shadow-sm transition hover:border-zinc-400"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <Link
+                        to={`/freelancer/jobs/${job._id}`}
+                        className="font-semibold hover:underline"
+                      >
+                        {job.title}
+                      </Link>
+
+                      <div className="mt-2">
+                        <StatusBadge
+                          status={job.status}
+                        />
+                      </div>
+                    </div>
+
+                    <ArrowUpRight className="h-4 w-4 text-zinc-400" />
+                  </div>
+
+                  <p className="mt-4 line-clamp-3 text-sm leading-6 text-zinc-500">
+                    {job.description}
+                  </p>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {job.skills.map(
+                      (skill) => (
+                        <span
+                          key={skill}
+                          className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600"
+                        >
+                          {skill}
+                        </span>
+                      ),
+                    )}
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between border-t pt-4">
+                    <div>
+                      <p className="font-semibold">
+                        {job.currency}{" "}
+                        {job.budget.toLocaleString()}
+                      </p>
+
+                      <p className="text-xs text-zinc-500">
+                        {job.budgetType}
+                      </p>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      asChild
+                    >
+                      <Link
+                        to={`/freelancer/jobs/${job._id}`}
+                      >
+                        View Job
+                      </Link>
+                    </Button>
+                  </div>
+                </article>
+              ),
+            )}
+          </div>
+          <div className="mt-8">
+            <Button asChild size="lg">
+              <Link to="/jobs">
+                View More
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
+
 
       {/* Benefits */}
       <section className="py-20 sm:py-28">

@@ -2,34 +2,45 @@ import { api } from "./api";
 
 import type {
   CreateJobRequest,
-  Job,
+  data,
   UpdateJobRequest,
 } from "@/types/job";
+
+
 
 
 interface JobResponse {
   success: boolean;
   message?: string;
   data: {
-    job: Job;
+    job: data;
   };
 }
 
 interface JobsResponse {
   success: boolean;
-  data: {
-    jobs: Job[];
-  };
+  data: data[];
+  totalDocuments?: number;
+  totalPages?: number;
+  currentPage?: number;
+}
+
+interface IJobResponse {
+  data: data[],
+  totalDocuments?: number,
+  totalPages?: number,
+  currentPage?: number
 }
 
 export interface JobFilters {
   category?: string;
   skill?: string;
+  page?: number;
 }
 
 export async function createJob(
   data: CreateJobRequest,
-): Promise<Job> {
+): Promise<data> {
   const response =
     await api.post<JobResponse>(
       "/jobs",
@@ -41,35 +52,43 @@ export async function createJob(
 
 export async function getJobs(
   filters?: JobFilters,
-): Promise<Job[]> {
-  const response =
-    await api.get<JobsResponse>(
-      "/jobs",
+): Promise<IJobResponse> {
+  const response = await api.get<JobsResponse>(
+      `/jobs`,
       {
         params: {
           category:
             filters?.category || undefined,
           skill:
             filters?.skill || undefined,
+          page:
+            filters?.page || 1,
         },
       },
     );
 
-  return response.data.data.jobs;
+  const givenData = {
+    data: response.data.data,
+    totalDocuments: response.data.totalDocuments,
+    totalPages: response.data.totalPages,
+    currentPage: response.data.currentPage, 
+  };
+
+  return givenData;
 }
 
-export async function getMyJobs(): Promise<Job[]> {
+export async function getMyJobs(): Promise<data[]> {
   const response =
     await api.get<JobsResponse>(
       "/jobs/my",
     );
 
-  return response.data.data.jobs;
+  return response.data.data;
 }
 
 export async function getJobById(
   id: string,
-): Promise<Job> {
+): Promise<data> {
   const response =
     await api.get<JobResponse>(
       `/jobs/${id}`,
@@ -81,7 +100,7 @@ export async function getJobById(
 export async function updateJob(
   id: string,
   data: UpdateJobRequest,
-): Promise<Job> {
+): Promise<data> {
   const response =
     await api.patch<JobResponse>(
       `/jobs/${id}`,
@@ -99,14 +118,14 @@ export async function deleteJob(
 interface AdminDeleteJobResponse {
   success: boolean;
   message: string;
-  data: { job: Job; deleted: boolean };
+  data: { job: data; deleted: boolean };
 }
 
 // Admin only. If the job already has a project attached to it, the
 // backend closes it (CANCELLED) instead of deleting it outright.
 export async function adminDeleteJob(
   id: string,
-): Promise<{ job: Job; deleted: boolean }> {
+): Promise<{ job: data; deleted: boolean }> {
   const response = await api.delete<AdminDeleteJobResponse>(
     `/jobs/admin/${id}`,
   );
@@ -115,7 +134,7 @@ export async function adminDeleteJob(
 }
 
 // Admin only: every job regardless of status.
-export async function getAllJobsAdmin(): Promise<Job[]> {
+export async function getAllJobsAdmin(): Promise<data[]> {
   const response = await api.get<JobsResponse>("/jobs/admin/all");
-  return response.data.data.jobs;
+  return response.data.data;
 }

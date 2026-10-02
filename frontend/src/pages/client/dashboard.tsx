@@ -24,8 +24,10 @@ const ACTIVE_PROJECT_STATUSES = ["AWAITING_PAYMENT", "IN_PROGRESS"];
 export default function ClientDashboard() {
   const { user } = useAuth();
 
-  const { data: jobs = [], isLoading: jobsLoading } = useMyJobs();
+  const { data, isLoading: jobsLoading } = useMyJobs();
   const { data: projects = [], isLoading: projectsLoading } = useMyProjects();
+
+  const jobs = data?.data || [];
 
   const firstName = user?.name?.split(" ")[0];
 

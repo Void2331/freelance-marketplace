@@ -1,5 +1,15 @@
-import { useMemo, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Filter, Search } from "lucide-react";
+
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 
 import { Button } from "@/components/ui/button";
 import JobCard from "@/components/jobs/job-card";
@@ -7,6 +17,7 @@ import JobCard from "@/components/jobs/job-card";
 import { useJobs } from "@/hooks/use-jobs";
 
 import type { BudgetType } from "@/types/job";
+import { PageContext } from "@/features/page/pageContext";
 
 type SortOption = "recent" | "highest" | "lowest";
 
@@ -17,9 +28,16 @@ export default function BrowseJobs() {
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState<SortOption>("recent");
 
+  const {currentPage, setCurrentPage} = useContext(PageContext);
+
   // Unfiltered, just to build the category dropdown — it shouldn't
   // shrink to only the currently-selected category.
-  const { data: allOpenJobs = [] } = useJobs();
+  const jobsData = useJobs({
+    page:
+      currentPage || 1,
+  });;
+
+  const allOpenJobs = jobsData.data?.data || [];
 
   const categories = useMemo(() => {
     const distinct = new Set(
@@ -30,10 +48,13 @@ export default function BrowseJobs() {
 
   // The actual result set — category filtering happens server-side.
   const {
-    data: jobs = [],
+    data,
     isLoading,
     isError,
-  } = useJobs({ category: category || undefined });
+  } = useJobs({ category: category || undefined, page: currentPage || 1 });
+
+  const jobs = data?.data || [];
+  const totalPages = data?.totalPages || 1;
 
   function toggleBudgetType(type: BudgetType) {
     setBudgetTypes((current) =>
@@ -207,6 +228,24 @@ export default function BrowseJobs() {
                 {visibleJobs.map((job) => (
                   <JobCard key={job._id} job={job} />
                 ))}
+                <div className="mt-6 flex items-center justify-center">
+                        <Pagination>
+                          <PaginationContent>
+                            <PaginationItem>
+                              <PaginationPrevious 
+                              onClick={ () => {
+                                setCurrentPage((prev) => prev > 0 ? prev - 1 : 1);
+                              }} />
+                            </PaginationItem>
+                            <PaginationItem>
+                              <PaginationNext 
+                              onClick={ () => {
+                                setCurrentPage((prev) => prev === totalPages ? totalPages : prev + 1);
+                              }} />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
               </div>
             )}
           </section>
