@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "create-admin": "node scripts/createAdmin.js",
-    "seed:db": "node seed.js"
+    "create-admin": "node scripts/createAdmin.js"
   },
   "keywords": [],
   "author": "",
