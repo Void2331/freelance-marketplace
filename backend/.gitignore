@@ -1,0 +1,6 @@
+.env
+.env.*
+node_modules/
+# Uploaded files (avatars, etc.) — keep the folder, ignore its contents
+uploads/**/*
+!uploads/**/.gitkeep
