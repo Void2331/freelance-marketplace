@@ -9,13 +9,13 @@ import type {
 
 export const registerUser = async (
   data: RegisterRequest,
-): Promise<AuthResponse> => {
+): Promise<ApiAuthResponse> => {
   const response = await api.post<ApiAuthResponse>(
     "/auth/register",
     data,
   );
 
-  return response.data.data;
+  return response.data;
 };
 
 export const loginUser = async (

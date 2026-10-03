@@ -1,6 +1,9 @@
+import axios from "axios";
 import {
   ArrowRight,
   BriefcaseBusiness,
+  Eye,
+  EyeOff,
   Loader2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -17,11 +20,12 @@ type RegistrationRole =
   | "FREELANCER";
 
 export default function Register() {
- 
+
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [role, setRole] =
     useState<RegistrationRole>("FREELANCER");
@@ -39,6 +43,29 @@ export default function Register() {
 
     setError("");
     setMessage("");
+
+    if (name.trim().length < 2) {
+      setError("Name must be at least 2 characters.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (!/[A-Z]/.test(password)) {
+      setError("Password must contain at least one uppercase letter.");
+      return;
+    }
+    if (!/[a-z]/.test(password)) {
+      setError("Password must contain at least one lowercase letter.");
+      return;
+    }
+    if (!/[0-9]/.test(password)) {
+      setError("Password must contain at least one number.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -53,18 +80,19 @@ export default function Register() {
         response.message ??
           "Registration successful. Check your email to verify your account.",
       );
-
-      setMessage(
-  response.message ??
-    "Registration successful. Check your email to verify your account.",
-);
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : "Unable to create your account.";
-
-      setError(message);
+      let errorMessage = "Unable to create your account.";
+      if (axios.isAxiosError(err) && err.response?.data) {
+        const responseData = err.response.data;
+        if (Array.isArray(responseData.errors) && responseData.errors.length > 0) {
+          errorMessage = responseData.errors.map((e: { message: string }) => e.message).join(", ");
+        } else if (responseData.message) {
+          errorMessage = responseData.message;
+        }
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -215,18 +243,40 @@ export default function Register() {
                 Password
               </Label>
 
-              <Input
-                id="register-password"
-                type="password"
-                value={password}
-                onChange={(event) =>
-                  setPassword(event.target.value)
-                }
-                placeholder="At least 8 characters"
-                autoComplete="new-password"
-                minLength={8}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="register-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) =>
+                    setPassword(event.target.value)
+                  }
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                  className="pr-10"
+                />
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPassword((prev) => !prev)
+                  }
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-700"
+                  aria-label={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
 
               <p className="text-xs text-zinc-500">
                 Use at least 8 characters with uppercase,
