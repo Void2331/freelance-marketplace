@@ -1,16 +1,19 @@
+// import { useState } from "react"; 
 import { Link, NavLink } from "react-router-dom";
 import {
   Bell,
   BriefcaseBusiness,
-  Menu,
+  // Menu,
+  // X,
   MessageSquare,
   Search,
   UserRound,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { MobileNavbar } from "@/components/navigation/MobileNavbar";
 
-const navItems = [
+export const navItems = [
   {
     id: "find-work",
     label: "Find Work",
@@ -24,12 +27,14 @@ const navItems = [
 ];
 
 export default function Navbar() {
+  // const [isMenuOpen, setIsMenuOpen] = useState(false);
   return (
     <header className="sticky top-0 z-50 border-b bg-white/95 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <div
-          className="flex shrink-0 items-center gap-2"
+        <Link
+          to="/"
+          className="flex shrink-0 items-center gap-2 hover:opacity-90"
         >
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-950 text-white">
             <BriefcaseBusiness className="h-5 w-5" />
@@ -38,7 +43,7 @@ export default function Navbar() {
           <span className="text-lg font-bold tracking-tight">
             FreelanceHub
           </span>
-        </div>
+        </Link>
 
         {/* Desktop navigation */}
         <nav className="hidden items-center gap-6 md:flex">
@@ -113,23 +118,15 @@ export default function Navbar() {
           </Link>
 
           {/* Sign up */}
-          <Button asChild>
-            <Link to="/register">
-              Sign up
-            </Link>
-          </Button>
-
-          {/* Mobile menu */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-label="Menu"
-          >
-            <Menu className="h-5 w-5" />
+          <Button asChild className="justify-center text-center">
+          <Link to="/register">Sign up</Link>
           </Button>
 
           {/* Profile */}
+          
+          {/* Mobile menu button + sheet */}
+          <div className="ml-auto md:hidden"></div>
+          <MobileNavbar />
      <Link
   to="/settings/profile"
   aria-label="Profile"

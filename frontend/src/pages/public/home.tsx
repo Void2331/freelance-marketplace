@@ -146,8 +146,8 @@ export default function Home() {
                     // console.log(inputRef.current!.value + ' ' + 'needs not be empty')
                     return
                   }else {
-                    // navigate('/jobs')
-                    console.log(searchTerm)
+                    navigate('/jobs')
+                    // console.log(searchTerm)
                     inputRef.current!.value = ''
                     setSearchTerm('')
                   }
