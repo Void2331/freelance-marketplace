@@ -8,6 +8,7 @@ const MilestoneSubmission = require("../models/milestoneSubmission.js");
 const ProjectActivity = require("../models/projectActivity.js");
 const User = require("../models/user.js");
 const emailService = require("../services/email.js");
+const AppError = require("../utils/AppError.js");
 
 const {
   checkProjectCompletion,
@@ -38,8 +39,9 @@ const approveMilestone = async (
           ).session(session);
 
         if (!milestone) {
-          throw new Error(
-            "Milestone not found"
+          throw new AppError(
+            "Milestone not found",
+            404
           );
         }
 
@@ -52,8 +54,9 @@ const approveMilestone = async (
           milestone.client.toString() !==
           req.user._id.toString()
         ) {
-          throw new Error(
-            "Only the client can approve this milestone"
+          throw new AppError(
+            "Only the client can approve this milestone",
+            403
           );
         }
 
@@ -66,8 +69,9 @@ const approveMilestone = async (
           milestone.status !==
           "SUBMITTED"
         ) {
-          throw new Error(
-            "Milestone is not awaiting approval"
+          throw new AppError(
+            "Milestone is not awaiting approval",
+            400
           );
         }
 
@@ -91,8 +95,9 @@ const approveMilestone = async (
             .session(session);
 
         if (!submission) {
-          throw new Error(
-            "No pending submission found"
+          throw new AppError(
+            "No pending submission found",
+            404
           );
         }
 
@@ -109,8 +114,9 @@ const approveMilestone = async (
           }).session(session);
 
         if (!payment) {
-          throw new Error(
-            "Funded payment not found"
+          throw new AppError(
+            "Funded payment not found",
+            404
           );
         }
 
@@ -175,8 +181,9 @@ const approveMilestone = async (
           wallet.pendingBalance <
           netAmount
         ) {
-          throw new Error(
-            "Insufficient pending wallet balance"
+          throw new AppError(
+            "Insufficient pending wallet balance",
+            400
           );
         }
 

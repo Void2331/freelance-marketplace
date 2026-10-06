@@ -21,7 +21,8 @@ const {
   loginSchema,
   resendVerificationSchema,
   forgotPasswordSchema,
-  resetPasswordSchema
+  resetPasswordSchema,
+  verifyEmailQuerySchema
 } = require("../validators/authValidator.js");
 
 
@@ -39,10 +40,11 @@ router.post(
 
 
 /*
- * Verify email
+ * Verify email (?token=...)
  */
 router.get(
   "/verify-email",
+  validate(verifyEmailQuerySchema, "query"),
   verifyEmail
 );
 

@@ -3,6 +3,7 @@ const express = require("express");
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const validate = require("../middleware/validateMiddleware");
+const objectIdParam = require("../middleware/objectIdParam");
 
 const {
   createJob,
@@ -18,9 +19,15 @@ const {
 const {
   createJobSchema,
   updateJobSchema,
+  listJobsQuerySchema,
 } = require("../validators/jobValidator");
 
 const router = express.Router();
+
+/*
+  Every path param in this router is a Mongo ObjectId.
+*/
+router.param("id", objectIdParam);
 
 /*
   Client posts a new job
@@ -34,9 +41,11 @@ router.post(
 );
 
 /*
-  Anyone authenticated can browse open jobs
+  Public job feed - intentionally NOT protected: the
+  landing page fetches it without a token.
+  (?page/?limit/?category/?skill are schema-validated.)
 */
-router.get("/", getJobs);
+router.get("/", validate(listJobsQuerySchema, "query"), getJobs);
 
 /*
   Client views their own posted jobs

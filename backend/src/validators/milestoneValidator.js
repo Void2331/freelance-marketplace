@@ -28,21 +28,44 @@ const updateMilestoneSchema =
   createMilestoneSchema.partial();
 
 const submitMilestoneSchema = z.object({
-  submission: z
-    .string()
+  message: z
+    .string({ message: "Submission message is required" })
     .trim()
-    .min(
-      10,
-      "Submission must be at least 10 characters"
-    )
+    .min(1, "Submission message is required")
     .max(
-      3000,
-      "Submission cannot exceed 3000 characters"
+      5000,
+      "Submission message cannot exceed 5000 characters"
+    ),
+
+  attachments: z
+    .array(
+      z.object({
+        name: z.string().optional(),
+        url: z.string(),
+        mimeType: z.string().optional(),
+        size: z.number().optional(),
+      })
     )
+    .optional(),
+});
+
+/*
+| POST /api/milestones/:milestoneId/request-changes
+*/
+const requestChangesSchema = z.object({
+  message: z
+    .string({ message: "Please explain what needs to be changed" })
+    .trim()
+    .min(1, "Please explain what needs to be changed")
+    .max(
+      5000,
+      "Message cannot exceed 5000 characters"
+    ),
 });
 
 module.exports = {
   createMilestoneSchema,
   updateMilestoneSchema,
-  submitMilestoneSchema
+  submitMilestoneSchema,
+  requestChangesSchema,
 };

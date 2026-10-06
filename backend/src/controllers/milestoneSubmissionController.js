@@ -7,6 +7,7 @@ const MilestoneSubmission = require("../models/milestoneSubmission.js");
 const ProjectActivity = require("../models/projectActivity.js");
 const User = require("../models/user.js");
 const emailService = require("../services/email.js");
+const AppError = require("../utils/AppError.js");
 
 const submitMilestone = async (
   req,
@@ -26,14 +27,6 @@ const submitMilestone = async (
     const { message, attachments = [] } =
       req.body;
 
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Submission message is required",
-      });
-    }
-
     await session.withTransaction(async () => {
       const milestone =
         await Milestone.findById(
@@ -41,8 +34,9 @@ const submitMilestone = async (
         ).session(session);
 
       if (!milestone) {
-        throw new Error(
-          "Milestone not found"
+        throw new AppError(
+          "Milestone not found",
+          404
         );
       }
 
@@ -50,8 +44,9 @@ const submitMilestone = async (
         milestone.freelancer.toString() !==
         req.user._id.toString()
       ) {
-        throw new Error(
-          "Only the assigned freelancer can submit this milestone"
+        throw new AppError(
+          "Only the assigned freelancer can submit this milestone",
+          403
         );
       }
 
@@ -67,8 +62,9 @@ const submitMilestone = async (
           "IN_PROGRESS",
         ].includes(milestone.status)
       ) {
-        throw new Error(
-          "This milestone cannot be submitted in its current state"
+        throw new AppError(
+          "This milestone cannot be submitted in its current state",
+          400
         );
       }
 
@@ -80,8 +76,9 @@ const submitMilestone = async (
         }).session(session);
 
       if (!contract) {
-        throw new Error(
-          "Active contract not found"
+        throw new AppError(
+          "Active contract not found",
+          404
         );
       }
 
@@ -180,14 +177,6 @@ const requestChanges = async (
     const { milestoneId } = req.params;
     const { message } = req.body;
 
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Please explain what needs to be changed",
-      });
-    }
-
     await session.withTransaction(async () => {
       const milestone =
         await Milestone.findById(
@@ -195,8 +184,9 @@ const requestChanges = async (
         ).session(session);
 
       if (!milestone) {
-        throw new Error(
-          "Milestone not found"
+        throw new AppError(
+          "Milestone not found",
+          404
         );
       }
 
@@ -204,16 +194,18 @@ const requestChanges = async (
         milestone.client.toString() !==
         req.user._id.toString()
       ) {
-        throw new Error(
-          "Only the client can request changes"
+        throw new AppError(
+          "Only the client can request changes",
+          403
         );
       }
 
       if (
         milestone.status !== "SUBMITTED"
       ) {
-        throw new Error(
-          "Milestone is not awaiting review"
+        throw new AppError(
+          "Milestone is not awaiting review",
+          400
         );
       }
 
@@ -228,8 +220,9 @@ const requestChanges = async (
           .session(session);
 
       if (!submission) {
-        throw new Error(
-          "Active submission not found"
+        throw new AppError(
+          "Active submission not found",
+          404
         );
       }
 

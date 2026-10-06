@@ -22,8 +22,9 @@ const createJob = asyncHandler(async (req, res) => {
 
 /*
 ====================================================
-BROWSE OPEN JOBS (public to any authenticated user)
-Supports optional ?category= and ?skill= filters
+BROWSE OPEN JOBS (public - the landing page fetches it
+without a token). Supports optional ?page= ?limit=
+?category= ?skill= (schema-validated in jobRoutes.js)
 ====================================================
 */
 const getJobs = asyncHandler(async (req, res) => {

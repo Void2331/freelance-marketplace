@@ -1,5 +1,7 @@
 const { z } = require("zod");
 
+const { optionalInt } = require("./queryHelpers.js");
+
 const createJobSchema = z.object({
   title: z
     .string()
@@ -31,7 +33,29 @@ const createJobSchema = z.object({
 
 const updateJobSchema = createJobSchema.partial();
 
+/*
+| GET /api/jobs - public job feed query string
+*/
+const listJobsQuerySchema = z.object({
+  page: optionalInt({ label: "page", min: 1 }),
+
+  limit: optionalInt({ label: "limit", min: 1, max: 100 }),
+
+  category: z
+    .string()
+    .trim()
+    .max(100, "category cannot exceed 100 characters")
+    .optional(),
+
+  skill: z
+    .string()
+    .trim()
+    .max(100, "skill cannot exceed 100 characters")
+    .optional()
+});
+
 module.exports = {
   createJobSchema,
   updateJobSchema,
+  listJobsQuerySchema,
 };

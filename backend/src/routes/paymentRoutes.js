@@ -9,7 +9,8 @@ const protect = require("../middleware/authMiddleware.js");
 const validate = require("../middleware/validateMiddleware.js");
 
 const {
-  initializePaymentSchema
+  initializePaymentSchema,
+  verifyPaymentSchema
 } = require("../validators/paymentValidator.js");
 
 const router = express.Router();
@@ -24,6 +25,7 @@ router.post(
 router.post(
   "/verify",
   protect,
+  validate(verifyPaymentSchema),
   verifyPayment
 );
 

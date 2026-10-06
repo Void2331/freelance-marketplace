@@ -3,6 +3,7 @@ const express = require("express");
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const validate = require("../middleware/validateMiddleware");
+const objectIdParam = require("../middleware/objectIdParam");
 
 const {
   getMyProjects,
@@ -19,6 +20,10 @@ const {
 
 const router = express.Router();
 
+/*
+  Every path param in this router is a Mongo ObjectId.
+*/
+router.param("id", objectIdParam);
 
 /*
 ====================================================
