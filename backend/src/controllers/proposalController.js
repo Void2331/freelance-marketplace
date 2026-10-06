@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const proposalService = require("../services/proposal.js");
 const emailService = require("../services/email.js");
 const asyncHandler = require("../utils/asyncHandler");
+const AppError = require("../utils/AppError.js");
 
 // Models
 const Proposal = require("../models/proposal");
@@ -196,7 +197,7 @@ const acceptProposal = async (req, res, next) => {
         .session(session);
 
       if (!proposal) {
-        throw new Error("Proposal not found");
+        throw new AppError("Proposal not found", 404);
       }
 
       // Captured in the outer scope for the "proposal accepted" email,
@@ -210,8 +211,9 @@ const acceptProposal = async (req, res, next) => {
       */
 
       if (!proposal.job) {
-        throw new Error(
-          "The job associated with this proposal no longer exists"
+        throw new AppError(
+          "The job associated with this proposal no longer exists",
+          404
         );
       }
 
@@ -225,8 +227,9 @@ const acceptProposal = async (req, res, next) => {
         proposal.job.client.toString() !==
         clientId.toString()
       ) {
-        throw new Error(
-          "You are not allowed to accept this proposal"
+        throw new AppError(
+          "You are not allowed to accept this proposal",
+          403
         );
       }
 
@@ -237,8 +240,9 @@ const acceptProposal = async (req, res, next) => {
       */
 
       if (proposal.status !== "PENDING") {
-        throw new Error(
-          "This proposal is no longer available"
+        throw new AppError(
+          "This proposal is no longer available",
+          400
         );
       }
 
@@ -249,8 +253,9 @@ const acceptProposal = async (req, res, next) => {
       */
 
       if (proposal.job.status !== "OPEN") {
-        throw new Error(
-          "This job is no longer open"
+        throw new AppError(
+          "This job is no longer open",
+          400
         );
       }
 
@@ -273,8 +278,9 @@ const acceptProposal = async (req, res, next) => {
         }).session(session);
 
       if (existingProject) {
-        throw new Error(
-          "A project already exists for this job"
+        throw new AppError(
+          "A project already exists for this job",
+          409
         );
       }
 

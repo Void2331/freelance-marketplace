@@ -19,7 +19,7 @@ Tokens are issued only by `POST /api/auth/login` and expire after `JWT_EXPIRES_I
 ## Table of Contents
 
 1. [Conventions](#1-conventions)
-2 [Global Error Format](#2-global-error-format)
+2. [Global Error Format](#2-global-error-format)
 3. [Health & Static](#3-health--static)
 4. [Authentication](#4-authentication)
 5. [Users](#5-users)
@@ -71,6 +71,8 @@ Every successful response has `success: true` plus a payload under `data` (or a 
 | 403 | `{"success":false,"message":"Your account has been deactivated"}` |
 | 403 | `{"success":false,"message":"You are not authorized to perform this action"}` — wrong role |
 
+> **Path-parameter validation runs first:** every `:id`-style path parameter is checked against the Mongo ObjectId format (Zod, via `router.param`) *before* authentication. A malformed ID returns `400 {"success":false,"message":"Invalid ID format"}` even on a request with no token; a well-formed ID without a token still returns `401` as listed above.
+
 ---
 
 ## 2. Global Error Format
@@ -83,16 +85,16 @@ Handled by the global error middleware (`backend/src/middleware/errorMiddleware.
 
 | Status | Source | Example message |
 |---|---|---|
-| 400 | Zod validation failure | `{"success":false,"message":"Name must be at least 2 characters","errors":[{"field":"name","message":"Name must be at least 2 characters"}]}` |
+| 400 | Zod validation failure — request **body** or **query string** | `{"success":false,"message":"Name must be at least 2 characters","errors":[{"field":"name","message":"Name must be at least 2 characters"}]}` |
 | 400 | Mongoose `ValidationError` | joined model messages |
-| 400 | Mongoose `CastError` | `"Invalid ID format"` |
+| 400 | Mongoose `CastError` **or** ObjectId path-param check (`router.param`, runs before auth) | `"Invalid ID format"` |
 | 400 | Multer | `"File is too large (5MB max)"` / `"Only JPEG, PNG, WEBP, or GIF images are allowed"` |
 | 401 | Auth middleware | see [§1](#common-authentication-errors) |
 | 403 | Role/ownership guard | see per-endpoint tables |
 | 404 | Resource not found | `"Job not found"`, `"User not found"`… |
 | 409 | Duplicate key (code 11000) | `"<field> already exists"` |
 | 429 | Rate limiter | `"Too many attempts. Please try again later."` (auth routes) |
-| 500 | Unhandled / plain `Error` | `"Internal server error"` or the thrown message |
+| 500 | Unhandled / unexpected error | `"Internal server error"` or the thrown message (operational failures — not-found, forbidden, wrong state, conflicts — return `AppError` **4xx**, see per-endpoint tables) |
 
 ---
 
@@ -166,7 +168,7 @@ Mounted at `/api/auth` — subject to the stricter auth rate limit (20 requests 
 | **Purpose** | Verify a user's email address from the emailed link |
 | **Authentication** | 🌐 Public |
 | **Request body** | — |
-| **Parameters** | Query: `token` (string, required) — raw verification token |
+| **Parameters** | Query: `token` (string, required) — raw verification token, **schema-validated** (Zod) |
 
 **Successful response:**
 
@@ -332,9 +334,9 @@ Mounted at `/api/users`. Route order: `/me` and `/admin/all` are registered befo
 | Endpoint | Method | Purpose | Authentication | Request body | Parameters | Successful response | Error response |
 |---|---|---|---|---|---|---|---|
 | `/api/users/me` | PATCH | Update own profile (name, avatar, bio, location, skills, hourlyRate) | 🔒 Authenticated | `{"name","avatar","bio","location","skills":[],"hourlyRate"}` — all optional; `name` 2–100, `bio` ≤1000, `avatar` ≤1000, `location` ≤150, `hourlyRate` ≥ 0. **Strict schema** — unknown fields rejected | — | **200** `{"success":true,"message":"Profile updated successfully","data":{"user":{...}}}` | **400** validation (`errors[]`) · **401** auth · **404** `"User not found"` |
-| `/api/users/admin/all` | GET | List all users (admin user management) | 👑 `ADMIN` | — | Query: `page` (int, default 1), `limit` (int, default 25, max 100), `role` (`CLIENT\|FREELANCER\|ADMIN`), `search` (matches name/email) | **200** `{"success":true,"data":{"users":[...],"pagination":{"page":1,"limit":25,"total":10,"totalPages":1}}}` | **401** auth · **403** wrong role |
+| `/api/users/admin/all` | GET | List all users (admin user management) | 👑 `ADMIN` | — | Query: `page` (int, default 1), `limit` (int, default 25, max 100), `role` (`CLIENT\|FREELANCER\|ADMIN`), `search` (matches name/email) — **schema-validated** | **200** `{"success":true,"data":{"users":[...],"pagination":{"page":1,"limit":25,"total":10,"totalPages":1}}}` | **400** query validation (`errors[]`, e.g. `role` not in enum, `limit` out of range) · **401** auth · **403** wrong role |
 | `/api/users/:id/status` | PATCH | Activate or deactivate a user account | 👑 `ADMIN` | `{"isActive": true\|false}` — boolean, **required** | Path: `id` (Mongo ObjectId) | **200** `{"success":true,"message":"User account reactivated" \| "User account deactivated","data":{"user":{...}}}` | **400** `"You cannot change your own account status"` · **400** `"Admin accounts cannot be deactivated from here"` · **400** validation · **401/403** · **404** `"User not found"` |
-| `/api/users` | GET | Browse/search freelancers | 🔒 Authenticated | — | Query: `skill` (matches skills array), `search` (name), `minRating` (number), `page` (≥1), `limit` (default 20, max 50) | **200** `{"success":true,"data":{"freelancers":[{"name","avatar","bio","location","skills","hourlyRate","role","averageRating","reviewCount","createdAt"}],"pagination":{...}}}` | **401** auth · **500** |
+| `/api/users` | GET | Browse/search freelancers | 🔒 Authenticated | — | Query: `skill` (matches skills array), `search` (name), `minRating` (number 0–5), `page` (≥1), `limit` (default 20, max 50) — **schema-validated** | **200** `{"success":true,"data":{"freelancers":[{"name","avatar","bio","location","skills","hourlyRate","role","averageRating","reviewCount","createdAt"}],"pagination":{...}}}` | **400** query validation (`errors[]`) · **401** auth |
 | `/api/users/:id` | GET | View a user's public profile | 🔒 Authenticated | — | Path: `id` (Mongo ObjectId) | **200** `{"success":true,"data":{"user":{"name","avatar","bio","location","skills","hourlyRate","role","averageRating","reviewCount","createdAt"}}}` | **401** auth · **400** `"Invalid ID format"` · **404** `"User not found"` |
 | `/api/users/:id/reviews` | GET | Reviews received by a user | 🔒 Authenticated | — | Path: `id` (Mongo ObjectId) | **200** `{"success":true,"data":{"reviews":[{...,"reviewer":{"name","avatar","role"},"project":{"title"}}]}}` | **401** auth · **400** `"Invalid ID format"` · **404** `"User not found"` |
 
@@ -346,7 +348,7 @@ Mounted at `/api/jobs`.
 
 | Endpoint | Method | Purpose | Authentication | Request body | Parameters | Successful response | Error response |
 |---|---|---|---|---|---|---|---|
-| `/api/jobs` | GET | Browse open jobs (job feed) | 🌐 **Public** (no `protect` middleware) | — | Query: `page` (default 1), `limit` (default 10), `category`, `skill` | **200** `{"success":true,"data":[{...job}],"totalDocuments":n,"totalPages":n,"currentPage":n}` | **500** |
+| `/api/jobs` | GET | Browse open jobs (job feed) | 🌐 **Public** (no `protect` middleware) | — | Query: `page` (default 1), `limit` (default 10, max 100), `category`, `skill` — **schema-validated** | **200** `{"success":true,"data":[{...job}],"totalDocuments":n,"totalPages":n,"currentPage":n}` | **400** query validation (`errors[]`, e.g. non-integer `page`) · **500** |
 | `/api/jobs` | POST | Post a new job | 👑 `CLIENT` | `{"title","description","category?","skills?[] ,"budget","budgetType?","deadline?"}` — `title` 5–150 chars; `description` 20–5000 chars; `budget` number **> 0** (required); `budgetType` `"FIXED"\|"HOURLY"`; `deadline` ISO datetime; `category` ≤100 chars | — | **201** `{"success":true,"message":"Job posted successfully","data":{"job":{...}}}` | **400** validation · **401** auth · **403** non-client |
 | `/api/jobs/my` | GET | List the logged-in client's own jobs | 👑 `CLIENT` | — | — | **200** `{"success":true,"data":{"jobs":[...]}}` (sorted newest first) | **401** auth · **403** non-client |
 | `/api/jobs/admin/all` | GET | List all jobs (any status) for moderation | 👑 `ADMIN` | — | — | **200** `{"success":true,"data":{"jobs":[..., "client":{"name","email","avatar"}]}}` | **401** auth · **403** non-admin |
@@ -368,7 +370,7 @@ Router mounted directly on `/api`.
 | `/api/proposals/my` | GET | List my submitted proposals | 👑 `FREELANCER` | — | — | **200** `{"success":true,"data":{"proposals":[...,"job":{"title","description","budget","budgetType","deadline","status"}]}}` | **401** · **403** |
 | `/api/proposals/client` | GET | List all proposals received on my jobs | 👑 `CLIENT` | — | — | **200** `{"success":true,"data":{"proposals":[...]}}` | **401** · **403** |
 | `/api/proposals/:id` | GET | View a single proposal | 🔒 Authenticated (client or its freelancer only) | — | Path: `id` | **200** `{"success":true,"data":{"proposal":{...}}}` | **401** · **403** `"You are not authorized to view this proposal"` · **404** `"Proposal not found"` |
-| `/api/proposals/:id/accept` | PATCH | Accept a proposal → creates project, contract, milestone and payment | 👑 `CLIENT` (job owner) | — | Path: `id` | **201** `{"success":true,"message":"Proposal accepted. Project, contract, milestone and payment created successfully.","data":{"projectId","contractId","milestoneId","paymentId","paymentReference","status":"AWAITING_PAYMENT"}}` | **500** (thrown errors surfaced without status): `"Proposal not found"` · `"You are not allowed to accept this proposal"` · `"This proposal is no longer available"` · `"This job is no longer open"` · `"A project already exists for this job"` · **401/403** |
+| `/api/proposals/:id/accept` | PATCH | Accept a proposal → creates project, contract, milestone and payment | 👑 `CLIENT` (job owner) | — | Path: `id` | **201** `{"success":true,"message":"Proposal accepted. Project, contract, milestone and payment created successfully.","data":{"projectId","contractId","milestoneId","paymentId","paymentReference","status":"AWAITING_PAYMENT"}}` | **400** `"This proposal is no longer available"` / `"This job is no longer open"` · **401/403** · **403** `"You are not allowed to accept this proposal"` · **404** `"Proposal not found"` / `"The job associated with this proposal no longer exists"` · **409** `"A project already exists for this job"` |
 | `/api/proposals/:id/reject` | PATCH | Reject a pending proposal | 👑 `CLIENT` (job owner) | — | Path: `id` | **200** `{"success":true,"message":"Proposal rejected successfully","data":{"proposal":{...}}}` | **400** `"Only pending proposals can be rejected"` · **401/403** · **403** `"You can only reject proposals for your own jobs"` · **404** `"Proposal not found"` |
 
 ---
@@ -411,9 +413,9 @@ Router mounted directly on `/api`. Participation checks happen inside the contro
 | Endpoint | Method | Purpose | Authentication | Request body | Parameters | Successful response | Error response |
 |---|---|---|---|---|---|---|---|
 | `/api/projects/:projectId/workroom` | GET | Get the full workroom view: project, contract, milestones, activity feed | 🔒 Authenticated (project participants only) | — | Path: `projectId` | **200** `{"success":true,"data":{"project":{},"contract":{},"milestones":[],"activities":[]}}` | **401** · **403** `"You are not part of this project"` · **404** `"Project not found"` |
-| `/api/milestones/:milestoneId/submit` | POST | Freelancer submits milestone work for review | 🔒 `FREELANCER` (assigned) | `{"message": "string (required, 10–3000 chars)", "attachments": [{"name?","url","mimeType?","size?"}] (optional)}` — **manual validation, no Zod** | Path: `milestoneId` | **201** `{"success":true,"message":"Milestone submitted successfully"}` | **400** `"Submission message is required"` · **500** (thrown): `"Milestone not found"` · `"Only the assigned freelancer can submit this milestone"` · `"This milestone cannot be submitted in its current state"` (needs `FUNDED`/`IN_PROGRESS`) · `"Active contract not found"` |
-| `/api/milestones/:milestoneId/request-changes` | POST | Client requests revisions on a submitted milestone | 🔒 `CLIENT` (project owner) | `{"message": "string (required)"}` — **manual validation** | Path: `milestoneId` | **200** `{"success":true,"message":"Revision requested successfully"}` | **400** `"Please explain what needs to be changed"` · **500** (thrown): `"Milestone not found"` · `"Only the client can request changes"` · `"Milestone is not awaiting review"` (must be `SUBMITTED`) · `"Active submission not found"` |
-| `/api/milestones/:milestoneId/approve` | POST | Client approves the milestone → releases escrow payment to freelancer wallet | 🔒 `CLIENT` (project owner) | — | Path: `milestoneId` | **200** `{"success":true,"message":"Milestone approved and payment released"}` | **500** (thrown): `"Milestone not found"` · `"Only the client can approve this milestone"` · `"Milestone is not awaiting approval"` · `"No pending submission found"` · `"Funded payment not found"` · `"Insufficient pending wallet balance"` |
+| `/api/milestones/:milestoneId/submit` | POST | Freelancer submits milestone work for review | 🔒 `FREELANCER` (assigned) | `{"message": "string (required, non-empty after trim, ≤5000 chars)", "attachments": [{"name?","url","mimeType?","size?"}] (optional)}` — **Zod-validated** | Path: `milestoneId` | **201** `{"success":true,"message":"Milestone submitted successfully"}` | **400** `"Submission message is required"` (Zod, `errors[]`) · **400** `"This milestone cannot be submitted in its current state"` (needs `FUNDED`/`IN_PROGRESS`) · **401** · **403** `"Only the assigned freelancer can submit this milestone"` · **404** `"Milestone not found"` / `"Active contract not found"` |
+| `/api/milestones/:milestoneId/request-changes` | POST | Client requests revisions on a submitted milestone | 🔒 `CLIENT` (project owner) | `{"message": "string (required, non-empty after trim, ≤5000 chars)"}` — **Zod-validated** | Path: `milestoneId` | **200** `{"success":true,"message":"Revision requested successfully"}` | **400** `"Please explain what needs to be changed"` (Zod, `errors[]`) · **400** `"Milestone is not awaiting review"` (must be `SUBMITTED`) · **401** · **403** `"Only the client can request changes"` · **404** `"Milestone not found"` / `"Active submission not found"` |
+| `/api/milestones/:milestoneId/approve` | POST | Client approves the milestone → releases escrow payment to freelancer wallet | 🔒 `CLIENT` (project owner) | — | Path: `milestoneId` | **200** `{"success":true,"message":"Milestone approved and payment released"}` | **400** `"Milestone is not awaiting approval"` / `"Insufficient pending wallet balance"` · **401** · **403** `"Only the client can approve this milestone"` · **404** `"Milestone not found"` / `"No pending submission found"` / `"Funded payment not found"` |
 
 ---
 
@@ -424,7 +426,7 @@ Mounted at `/api/payments` (Paystack integration).
 | Endpoint | Method | Purpose | Authentication | Request body | Parameters | Successful response | Error response |
 |---|---|---|---|---|---|---|---|
 | `/api/payments/initialize` | POST | Initialize escrow funding for a milestone → returns Paystack checkout URL | 🔒 `CLIENT` (project owner) | `{"milestoneId": "string (required, min 1)"}` | — | **200** `{"success":true,"message":"Payment initialized successfully","data":{"paymentId","reference","authorizationUrl","accessCode","amount","clientFee","totalClientCharge"}}` | **400** `"This milestone cannot be funded"` (must be `PENDING`/`REVISION_REQUESTED`) · **400** `"This milestone already has an active payment"` · **400** validation · **401/403** · **403** `"You are not authorized to fund this milestone"` · **404** `"Milestone not found"` / `"Client not found"` · **500** `"Unable to initialize payment"` |
-| `/api/payments/verify` | POST | Verify a Paystack transaction after checkout and activate the milestone | 🔒 Authenticated | `{"reference": "string"}` — **manual validation, no Zod** | — | **200** `{"success":true,"message":"Payment verified successfully","data":{"payment":{"payment":{...payment doc},"transaction":{"status","reference","amount","currency","id"}}}}` (note: nested) | **400** `"Payment amount mismatch"` · **401** · **404** `"Payment record not found"` |
+| `/api/payments/verify` | POST | Verify a Paystack transaction after checkout and activate the milestone | 🔒 Authenticated | `{"reference": "string (required, non-empty after trim)"}` — **Zod-validated** | — | **200** `{"success":true,"message":"Payment verified successfully","data":{"payment":{...payment doc},"transaction":{"status","reference","amount","currency","id"}}}` (flat — `data.payment` and `data.transaction`) | **400** `"Payment reference is required"` (Zod, `errors[]`) · **400** `"Payment amount mismatch"` · **401** · **404** `"Payment record not found"` |
 
 > Note: `POST /api/payments/release` was removed — escrow release happens via `POST /api/milestones/:milestoneId/approve` (§10).
 
@@ -474,7 +476,7 @@ Router mounted directly on `/api`.
 
 | Endpoint | Method | Purpose | Authentication | Request body | Parameters | Successful response | Error response |
 |---|---|---|---|---|---|---|---|
-| `/api/projects/:projectId/review` | POST | Leave a review for a completed project | 🔒 Authenticated (project participants only) | `{"rating": number 1–5 (required), "communicationRating?": 1–5, "qualityRating?": 1–5, "deadlineRating?": 1–5, "comment?": string ≤2000}` — **manual validation, no Zod** | Path: `projectId` | **201** `{"success":true,"message":"Review submitted successfully","data":{...review}}` | **400** `"Rating must be between 1 and 5"` · **400** `"Reviews can only be submitted for completed projects"` (project must be `COMPLETED`) · **401** · **403** `"Only project participants can leave reviews"` · **404** `"Project not found"` · **409** `"You have already reviewed this project"` |
+| `/api/projects/:projectId/review` | POST | Leave a review for a completed project | 🔒 Authenticated (project participants only) | `{"rating": number 1–5 (required), "communicationRating?": 1–5, "qualityRating?": 1–5, "deadlineRating?": 1–5, "comment?": string ≤2000}` — **Zod-validated** (sub-ratings/comment may also be `null`) | Path: `projectId` | **201** `{"success":true,"message":"Review submitted successfully","data":{...review}}` | **400** `"Rating must be between 1 and 5"` (Zod, `errors[]`) · **400** `"Reviews can only be submitted for completed projects"` (project must be `COMPLETED`) · **401** · **403** `"Only project participants can leave reviews"` · **404** `"Project not found"` · **409** `"You have already reviewed this project"` |
 | `/api/projects/:projectId/reviews` | GET | List reviews for a project | 🔒 Authenticated (participants only) | — | Path: `projectId` | **200** `{"success":true,"data":{"reviews":[...,"reviewer":{"name","avatar","role"}]}}` | **401** · **403** `"Only project participants can view these reviews"` · **404** `"Project not found"` |
 
 > Side effect of `POST`: the reviewee's `averageRating` (rounded to 1 dp) and `reviewCount` are recalculated.
@@ -501,9 +503,9 @@ Router mounted directly on `/api`.
 
 | Endpoint | Method | Purpose | Authentication | Request body | Parameters | Successful response | Error response |
 |---|---|---|---|---|---|---|---|
-| `/api/milestones/:milestoneId/dispute` | POST | Open a dispute on a milestone | 🔒 Authenticated (milestone participants) | `{"reason": enum (required), "description": string ≤5000 (required), "evidence?": [{"name?","url","mimeType?"}]}` — `reason` ∈ `NON_PAYMENT`, `POOR_QUALITY`, `SCOPE_DISAGREEMENT`, `MISSED_DEADLINE`, `NON_DELIVERY`, `FRAUD`, `OTHER` — **manual validation, no Zod** | Path: `milestoneId` | **201** `{"success":true,"message":"Dispute opened successfully"}` | **400** `"Reason and description are required"` / `"Invalid dispute decision"` · **401** · **500** (thrown): `"Milestone not found"` · `"You are not part of this milestone"` · `"An active dispute already exists"` |
-| `/api/disputes/:disputeId/resolve` | PATCH | Resolve a dispute (admin decision) | 👑 `ADMIN` | `{"decision": enum (required), "resolution": string (required)}` — `decision` ∈ `RESOLVED_CLIENT`, `RESOLVED_FREELANCER`, `PARTIAL_RESOLUTION` | Path: `disputeId` | **200** `{"success":true,"message":"Dispute resolved successfully"}` | **400** `"Invalid dispute decision"` / `"Resolution explanation is required"` · **401/403** · **500** (thrown): `"Dispute not found"` · `"Dispute has already been resolved"` |
-| `/api/disputes` | GET | List all disputes (filterable) | 👑 `ADMIN` | — | Query: `status` | **200** `{"success":true,"data":{"disputes":[...,"project":{},"milestone":{},"openedBy":{},"against":{},"resolvedBy":{}]}}` | **401** · **403** |
+| `/api/milestones/:milestoneId/dispute` | POST | Open a dispute on a milestone | 🔒 Authenticated (milestone participants) | `{"reason": enum (required), "description": string ≤5000 (required), "evidence?": [{"name?","url","mimeType?"}]}` — `reason` ∈ `NON_PAYMENT`, `POOR_QUALITY`, `SCOPE_DISAGREEMENT`, `MISSED_DEADLINE`, `NON_DELIVERY`, `FRAUD`, `OTHER` — **Zod-validated** | Path: `milestoneId` | **201** `{"success":true,"message":"Dispute opened successfully"}` | **400** `"Reason and description are required"` / `"Invalid dispute reason"` (Zod, `errors[]`) · **401** · **403** `"You are not part of this milestone"` · **404** `"Milestone not found"` · **409** `"An active dispute already exists"` |
+| `/api/disputes/:disputeId/resolve` | PATCH | Resolve a dispute (admin decision) | 👑 `ADMIN` | `{"decision": enum (required), "resolution": string (required, non-empty after trim)}` — `decision` ∈ `RESOLVED_CLIENT`, `RESOLVED_FREELANCER`, `PARTIAL_RESOLUTION` — **Zod-validated** | Path: `disputeId` | **200** `{"success":true,"message":"Dispute resolved successfully"}` | **400** `"Invalid dispute decision"` / `"Resolution explanation is required"` (Zod, `errors[]`) · **400** `"Dispute has already been resolved"` · **401/403** · **404** `"Dispute not found"` |
+| `/api/disputes` | GET | List all disputes (filterable) | 👑 `ADMIN` | — | Query: `status` (dispute-status enum) — **schema-validated** | **200** `{"success":true,"data":{"disputes":[...,"project":{},"milestone":{},"openedBy":{},"against":{},"resolvedBy":{}]}}` | **400** query validation (`errors[]`, e.g. unknown `status`) · **401** · **403** |
 | `/api/projects/:projectId/disputes` | GET | List disputes for a project | 🔒 Authenticated (participants or ADMIN) | — | Path: `projectId` | **200** `{"success":true,"data":{"disputes":[...]}}` | **401** · **403** `"You are not authorized to view these disputes"` · **404** `"Project not found"` |
 
 ---
@@ -517,7 +519,7 @@ Router mounted directly on `/api`.
 | **Purpose** | Get my recent notifications (project activity feed) |
 | **Authentication** | 🔒 Authenticated (any role) |
 | **Request body** | — |
-| **Parameters** | Query: `limit` (int, default 15, min 1, max 50) |
+| **Parameters** | Query: `limit` (int, default 15, min 1, max 50) — **schema-validated** |
 
 **Successful response:**
 
@@ -528,7 +530,7 @@ Router mounted directly on `/api`.
     "user": {"name": "..."}, "message": "...", "createdAt": "..." } ] } }
 ```
 
-**Error responses:** **401** auth errors · **500**
+**Error responses:** **400** query validation (`errors[]`, e.g. non-integer/out-of-range `limit`) · **401** auth errors · **500**
 
 ---
 
@@ -607,10 +609,11 @@ CORS: allowed origin `CLIENT_URL` (default `http://localhost:5173`), credentials
 
 ---
 
-### Known discrepancies to be aware of
+### Validation & error-handling notes
 
-1. `GET /api/jobs` is **public** although a code comment claims it requires authentication.
-2. Zod `validate()` middleware checks **`req.body` only** — query and path parameters are not schema-validated.
-3. Several flows (proposal accept, milestone submit/request-changes/approve, dispute open/resolve) throw plain `Error`s and therefore surface as **500** instead of 4xx.
-4. `POST /api/payments/verify` returns a doubly-nested `data.payment.{payment, transaction}` structure.
-5. Endpoints with **manual (non-Zod) body validation**: `payments/verify`, milestone `submit`/`request-changes`, review create, dispute open/resolve.
+1. `GET /api/jobs` is **public by design** — the landing page fetches the job feed without a token (the route contains no `protect` middleware).
+2. Zod `validate()` middleware checks the request **`req.body`** (default) and, with `validate(schema, "query")`, the **query string** of the list endpoints (`/jobs`, `/users`, `/users/admin/all`, `/notifications`, `/disputes`, `/auth/verify-email`). Query validation is reject-only — it never rewrites `req.query`, so services still parse the raw strings themselves.
+3. **Path parameters** are schema-validated separately: every `:id` / `:jobId` / `:projectId` / `:milestoneId` / `:disputeId` route registers a Zod ObjectId check through `router.param`, returning `400 {"success":false,"message":"Invalid ID format"}` before the request reaches authentication or the database.
+4. Operational failures (not-found, forbidden, wrong state, duplicates) are thrown as `AppError` with explicit **4xx** status codes — e.g. proposal accept, milestone submit/request-changes/approve, dispute open/resolve now return 400/403/404/409 instead of 500. Genuine unexpected errors still return 500.
+5. `POST /api/payments/verify` returns a **flat** `data.payment` + `data.transaction` structure (matching the frontend's `PaymentVerification` type).
+6. All formerly manual body validations are now Zod schemas wired through `validate()`: `payments/verify`, milestone `submit`/`request-changes`, review create, dispute open/resolve. Legacy error strings are preserved (e.g. `"Submission message is required"`, `"Rating must be between 1 and 5"`, `"Invalid dispute decision"`).

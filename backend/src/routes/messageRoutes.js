@@ -2,6 +2,7 @@ const express = require("express");
 
 const protect = require("../middleware/authMiddleware.js");
 const validate = require("../middleware/validateMiddleware.js");
+const objectIdParam = require("../middleware/objectIdParam.js");
 
 const {
   sendMessage,
@@ -16,6 +17,12 @@ const {
 } = require("../validators/messageValidator.js");
 
 const router = express.Router();
+
+/*
+  Every path param in this router is a Mongo ObjectId.
+*/
+router.param("projectId", objectIdParam);
+
 
 router.post(
   "/projects/:projectId/messages",

@@ -28,7 +28,10 @@ const verifyPayment =
       const { reference } =
         req.body;
 
-      const payment =
+      const {
+        payment,
+        transaction,
+      } =
         await paymentService.verifyPayment(
           reference
         );
@@ -38,8 +41,9 @@ const verifyPayment =
         message:
           "Payment verified successfully",
         data: {
-          payment
-        }
+          payment,
+          transaction,
+        },
       });
     }
   );

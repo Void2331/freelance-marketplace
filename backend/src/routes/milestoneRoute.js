@@ -3,6 +3,7 @@ const express = require("express");
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const validate = require("../middleware/validateMiddleware");
+const objectIdParam = require("../middleware/objectIdParam");
 
 const {
   createMilestone,
@@ -21,6 +22,11 @@ const {
 
 const router = express.Router();
 
+/*
+  Every path param in this router is a Mongo ObjectId.
+*/
+router.param("projectId", objectIdParam);
+router.param("id", objectIdParam);
 
 /*
 ====================================================

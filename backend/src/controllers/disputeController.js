@@ -7,6 +7,7 @@ const ProjectActivity = require("../models/projectActivity.js");
 const User = require("../models/user.js");
 const emailService = require("../services/email.js");
 const asyncHandler = require("../utils/asyncHandler");
+const AppError = require("../utils/AppError.js");
 
 const openDispute = async (
   req,
@@ -28,14 +29,6 @@ const openDispute = async (
       evidence = [],
     } = req.body;
 
-    if (!reason || !description) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Reason and description are required",
-      });
-    }
-
     await session.withTransaction(async () => {
       const milestone =
         await Milestone.findById(
@@ -43,8 +36,9 @@ const openDispute = async (
         ).session(session);
 
       if (!milestone) {
-        throw new Error(
-          "Milestone not found"
+        throw new AppError(
+          "Milestone not found",
+          404
         );
       }
 
@@ -57,8 +51,9 @@ const openDispute = async (
         req.user._id.toString();
 
       if (!isClient && !isFreelancer) {
-        throw new Error(
-          "You are not part of this milestone"
+        throw new AppError(
+          "You are not part of this milestone",
+          403
         );
       }
 
@@ -76,8 +71,9 @@ const openDispute = async (
         }).session(session);
 
       if (existing) {
-        throw new Error(
-          "An active dispute already exists"
+        throw new AppError(
+          "An active dispute already exists",
+          409
         );
       }
 
@@ -206,27 +202,6 @@ const resolveDispute = async (
       resolution,
     } = req.body;
 
-    const validDecisions = [
-      "RESOLVED_CLIENT",
-      "RESOLVED_FREELANCER",
-      "PARTIAL_RESOLUTION",
-    ];
-
-    if (!validDecisions.includes(decision)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid dispute decision",
-      });
-    }
-
-    if (!resolution) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Resolution explanation is required",
-      });
-    }
-
     await session.withTransaction(async () => {
       const dispute =
         await Dispute.findById(
@@ -234,8 +209,9 @@ const resolveDispute = async (
         ).session(session);
 
       if (!dispute) {
-        throw new Error(
-          "Dispute not found"
+        throw new AppError(
+          "Dispute not found",
+          404
         );
       }
 
@@ -246,8 +222,9 @@ const resolveDispute = async (
           "AWAITING_RESPONSE",
         ].includes(dispute.status)
       ) {
-        throw new Error(
-          "Dispute has already been resolved"
+        throw new AppError(
+          "Dispute has already been resolved",
+          400
         );
       }
 

@@ -56,7 +56,7 @@
               "path": ["auth", "verify-email"],
               "query": [{ "key": "token", "value": "<verification-token>", "description": "Raw verification token from email (required)" }]
             },
-            "description": "**Purpose:** Verify email from the emailed link.\n**Auth:** Public.\n**Params:** query `token` (required).\n**Success:** 200 `{\"success\":true,\"message\":\"Email verified successfully\",\"data\":{\"user\":{...}}}`\n**Errors:** 400 `Verification token is required` · 400 `Verification link is invalid or has expired`"
+            "description": "**Purpose:** Verify email from the emailed link.\n**Auth:** Public.\n**Params:** query `token` (required) — schema-validated (Zod).\n**Success:** 200 `{\"success\":true,\"message\":\"Email verified successfully\",\"data\":{\"user\":{...}}}`\n**Errors:** 400 `Verification token is required` · 400 `Verification link is invalid or has expired`"
           }
         },
         {
@@ -160,7 +160,7 @@
                 { "key": "search", "value": "jane", "description": "matches name/email" }
               ]
             },
-            "description": "**Purpose:** List all users (admin management).\n**Auth:** ADMIN only.\n**Success:** 200 `{\"success\":true,\"data\":{\"users\":[...],\"pagination\":{\"page\",\"limit\",\"total\",\"totalPages\"}}}`\n**Errors:** 401 · 403 wrong role"
+            "description": "**Purpose:** List all users (admin management).\n**Auth:** ADMIN only.\n**Params:** query `page` (≥1), `limit` (1-100), `role` (`CLIENT`|`FREELANCER`|`ADMIN`), `search` — schema-validated (Zod).\n**Success:** 200 `{\"success\":true,\"data\":{\"users\":[...],\"pagination\":{\"page\",\"limit\",\"total\",\"totalPages\"}}}`\n**Errors:** 400 query validation (`errors[]`) · 401 · 403 wrong role"
           }
         },
         {
@@ -189,7 +189,7 @@
                 { "key": "limit", "value": "20", "description": "default 20, max 50" }
               ]
             },
-            "description": "**Purpose:** Browse/search freelancers.\n**Auth:** Any authenticated role.\n**Success:** 200 `{\"success\":true,\"data\":{\"freelancers\":[{\"name\",\"avatar\",\"bio\",\"location\",\"skills\",\"hourlyRate\",\"role\",\"averageRating\",\"reviewCount\",\"createdAt\"}],\"pagination\":{...}}}`\n**Errors:** 401 · 500"
+            "description": "**Purpose:** Browse/search freelancers.\n**Auth:** Any authenticated role.\n**Params:** query `skill`, `search`, `minRating` (0-5), `page` (≥1), `limit` (1-50) — schema-validated (Zod).\n**Success:** 200 `{\"success\":true,\"data\":{\"freelancers\":[{\"name\",\"avatar\",\"bio\",\"location\",\"skills\",\"hourlyRate\",\"role\",\"averageRating\",\"reviewCount\",\"createdAt\"}],\"pagination\":{...}}}`\n**Errors:** 400 query validation (`errors[]`) · 401"
           }
         },
         {
@@ -229,7 +229,7 @@
                 { "key": "skill", "value": "React", "description": "matches skills array" }
               ]
             },
-            "description": "**Purpose:** Browse open jobs (job feed).\n**Auth:** 🌐 Public — no token required (despite a code comment suggesting otherwise).\n**Success:** 200 `{\"success\":true,\"data\":[{...job}],\"totalDocuments\":n,\"totalPages\":n,\"currentPage\":n}`\n**Errors:** 500"
+            "description": "**Purpose:** Browse open jobs (job feed).\n**Auth:** 🌐 Public — intentionally no token required (the landing page fetches it).\n**Params:** query `page`, `limit` (1-100), `category`, `skill` — schema-validated (Zod).\n**Success:** 200 `{\"success\":true,\"data\":[{...job}],\"totalDocuments\":n,\"totalPages\":n,\"currentPage\":n}`\n**Errors:** 400 query validation (`errors[]`) · 500"
           }
         },
         {
@@ -350,7 +350,7 @@
           "request": {
             "method": "PATCH",
             "url": { "raw": "{{base_url}}/proposals/:id/accept", "host": ["{{base_url}}"], "path": ["proposals", ":id", "accept"], "variable": [{ "key": "id", "value": "<proposalId>" }] },
-            "description": "**Purpose:** Accept a proposal → creates project, contract, milestone and payment.\n**Auth:** CLIENT (job owner).\n**Success:** 201 `{\"success\":true,\"message\":\"Proposal accepted...\",\"data\":{\"projectId\",\"contractId\",\"milestoneId\",\"paymentId\",\"paymentReference\",\"status\":\"AWAITING_PAYMENT\"}}`\n**Errors (returned as 500 — plain Error thrown in service):** `Proposal not found` · `You are not allowed to accept this proposal` · `This proposal is no longer available` · `This job is no longer open` · `A project already exists for this job` · also 401/403"
+            "description": "**Purpose:** Accept a proposal → creates project, contract, milestone and payment.\n**Auth:** CLIENT (job owner).\n**Success:** 201 `{\"success\":true,\"message\":\"Proposal accepted...\",\"data\":{\"projectId\",\"contractId\",\"milestoneId\",\"paymentId\",\"paymentReference\",\"status\":\"AWAITING_PAYMENT\"}}`\n**Errors:** 400 `This proposal is no longer available` / `This job is no longer open` · 403 `You are not allowed to accept this proposal` · 404 `Proposal not found` / `The job associated with this proposal no longer exists` · 409 `A project already exists for this job` · 401/403"
           }
         },
         {
@@ -507,7 +507,7 @@
               "raw": "{\n  \"message\": \"Phase 1 is complete. The API scaffold, auth and DB connection are ready for review.\",\n  \"attachments\": []\n}"
             },
             "url": { "raw": "{{base_url}}/milestones/:milestoneId/submit", "host": ["{{base_url}}"], "path": ["milestones", ":milestoneId", "submit"], "variable": [{ "key": "milestoneId", "value": "<milestoneId>" }] },
-            "description": "**Purpose:** Freelancer submits milestone work for review.\n**Auth:** FREELANCER (assigned).\n**Body (manual validation, no Zod):** `message` (required), `attachments?` (array of `{name?,url,mimeType?,size?}`).\n**Success:** 201 `{\"success\":true,\"message\":\"Milestone submitted successfully\"}`\n**Errors:** 400 `Submission message is required` · 500 (thrown): `Milestone not found` · `Only the assigned freelancer can submit this milestone` · `This milestone cannot be submitted in its current state` · `Active contract not found` · 401"
+            "description": "**Purpose:** Freelancer submits milestone work for review.\n**Auth:** FREELANCER (assigned).\n**Body (Zod-validated):** `message` (required, non-empty after trim, ≤5000), `attachments?` (array of `{name?,url,mimeType?,size?}`).\n**Success:** 201 `{\"success\":true,\"message\":\"Milestone submitted successfully\"}`\n**Errors:** 400 `Submission message is required` (Zod) · 400 `This milestone cannot be submitted in its current state` · 403 `Only the assigned freelancer can submit this milestone` · 404 `Milestone not found` / `Active contract not found` · 401"
           }
         },
         {
@@ -517,7 +517,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"message\": \"Please add input validation to all endpoints before I approve this.\"\n}" },
             "url": { "raw": "{{base_url}}/milestones/:milestoneId/request-changes", "host": ["{{base_url}}"], "path": ["milestones", ":milestoneId", "request-changes"], "variable": [{ "key": "milestoneId", "value": "<milestoneId>" }] },
-            "description": "**Purpose:** Client requests revisions on a submitted milestone.\n**Auth:** CLIENT (project owner).\n**Body (manual validation):** `message` (required).\n**Success:** 200 `{\"success\":true,\"message\":\"Revision requested successfully\"}`\n**Errors:** 400 `Please explain what needs to be changed` · 500 (thrown): `Milestone not found` · `Only the client can request changes` · `Milestone is not awaiting review` · `Active submission not found` · 401"
+            "description": "**Purpose:** Client requests revisions on a submitted milestone.\n**Auth:** CLIENT (project owner).\n**Body (Zod-validated):** `message` (required, non-empty after trim, ≤5000).\n**Success:** 200 `{\"success\":true,\"message\":\"Revision requested successfully\"}`\n**Errors:** 400 `Please explain what needs to be changed` (Zod) · 400 `Milestone is not awaiting review` · 403 `Only the client can request changes` · 404 `Milestone not found` / `Active submission not found` · 401"
           }
         },
         {
@@ -525,7 +525,7 @@
           "request": {
             "method": "POST",
             "url": { "raw": "{{base_url}}/milestones/:milestoneId/approve", "host": ["{{base_url}}"], "path": ["milestones", ":milestoneId", "approve"], "variable": [{ "key": "milestoneId", "value": "<milestoneId>" }] },
-            "description": "**Purpose:** Client approves the milestone → releases escrow to the freelancer wallet, marks payment RELEASED.\n**Auth:** CLIENT (project owner).\n**Body:** none.\n**Success:** 200 `{\"success\":true,\"message\":\"Milestone approved and payment released\"}`\n**Errors (500 — thrown):** `Milestone not found` · `Only the client can approve this milestone` · `Milestone is not awaiting approval` · `No pending submission found` · `Funded payment not found` · `Insufficient pending wallet balance` · 401"
+            "description": "**Purpose:** Client approves the milestone → releases escrow to the freelancer wallet, marks payment RELEASED.\n**Auth:** CLIENT (project owner).\n**Body:** none.\n**Success:** 200 `{\"success\":true,\"message\":\"Milestone approved and payment released\"}`\n**Errors:** 400 `Milestone is not awaiting approval` / `Insufficient pending wallet balance` · 403 `Only the client can approve this milestone` · 404 `Milestone not found` / `No pending submission found` / `Funded payment not found` · 401"
           }
         }
       ]
@@ -550,7 +550,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"reference\": \"<paystack-reference>\"\n}" },
             "url": { "raw": "{{base_url}}/payments/verify", "host": ["{{base_url}}"], "path": ["payments", "verify"] },
-            "description": "**Purpose:** Verify a Paystack transaction after checkout and activate the milestone.\n**Auth:** Any authenticated role (manual body validation, no Zod).\n**Body:** `reference` (string, required).\n**Success:** 200 `{\"success\":true,\"message\":\"Payment verified successfully\",\"data\":{\"payment\":{\"payment\":{...},\"transaction\":{\"status\",\"reference\",\"amount\",\"currency\",\"id\"}}}}` (note: nested)\n**Errors:** 400 `Payment amount mismatch` · 404 `Payment record not found` · 401"
+            "description": "**Purpose:** Verify a Paystack transaction after checkout and activate the milestone.\n**Auth:** Any authenticated role (Zod-validated body).\n**Body:** `reference` (string, required).\n**Success:** 200 `{\"success\":true,\"message\":\"Payment verified successfully\",\"data\":{\"payment\":{...},\"transaction\":{\"status\",\"reference\",\"amount\",\"currency\",\"id\"}}}` (flat — `data.payment` + `data.transaction`)\n**Errors:** 400 `Payment reference is required` (Zod) · 400 `Payment amount mismatch` · 404 `Payment record not found` · 401"
           }
         }
       ]
@@ -641,7 +641,7 @@
               "raw": "{\n  \"rating\": 5,\n  \"communicationRating\": 5,\n  \"qualityRating\": 4,\n  \"deadlineRating\": 5,\n  \"comment\": \"Great freelancer, delivered on time and communicated clearly.\"\n}"
             },
             "url": { "raw": "{{base_url}}/projects/:projectId/review", "host": ["{{base_url}}"], "path": ["projects", ":projectId", "review"], "variable": [{ "key": "projectId", "value": "<projectId>" }] },
-            "description": "**Purpose:** Leave a review for a completed project (recalculates reviewee averageRating & reviewCount).\n**Auth:** Authenticated — project participants (manual validation, no Zod).\n**Body:** `rating` (1-5, required), `communicationRating?`/`qualityRating?`/`deadlineRating?` (1-5), `comment?` (≤2000).\n**Success:** 201 `{\"success\":true,\"message\":\"Review submitted successfully\",\"data\":{...review}}`\n**Errors:** 400 `Rating must be between 1 and 5` · 400 `Reviews can only be submitted for completed projects` · 403 `Only project participants can leave reviews` · 404 `Project not found` · 409 `You have already reviewed this project` · 401"
+            "description": "**Purpose:** Leave a review for a completed project (recalculates reviewee averageRating & reviewCount).\n**Auth:** Authenticated — project participants (Zod-validated body).\n**Body:** `rating` (1-5, required), `communicationRating?`/`qualityRating?`/`deadlineRating?` (1-5, nullable), `comment?` (≤2000).\n**Success:** 201 `{\"success\":true,\"message\":\"Review submitted successfully\",\"data\":{...review}}`\n**Errors:** 400 `Rating must be between 1 and 5` (Zod) · 400 `Reviews can only be submitted for completed projects` · 403 `Only project participants can leave reviews` · 404 `Project not found` · 409 `You have already reviewed this project` · 401"
           }
         },
         {
@@ -714,7 +714,7 @@
               "raw": "{\n  \"reason\": \"NON_PAYMENT\",\n  \"description\": \"The milestone was approved but no payment has been released after 7 days.\",\n  \"evidence\": []\n}"
             },
             "url": { "raw": "{{base_url}}/milestones/:milestoneId/dispute", "host": ["{{base_url}}"], "path": ["milestones", ":milestoneId", "dispute"], "variable": [{ "key": "milestoneId", "value": "<milestoneId>" }] },
-            "description": "**Purpose:** Open a dispute on a milestone.\n**Auth:** Authenticated — milestone participants (manual validation, no Zod).\n**Body:** `reason` (required, enum: NON_PAYMENT | POOR_QUALITY | SCOPE_DISAGREEMENT | MISSED_DEADLINE | NON_DELIVERY | FRAUD | OTHER), `description` (required, ≤5000), `evidence?` (array of `{name?,url,mimeType?}`).\n**Success:** 201 `{\"success\":true,\"message\":\"Dispute opened successfully\"}`\n**Errors:** 400 `Reason and description are required` · 500 (thrown): `Milestone not found` · `You are not part of this milestone` · `An active dispute already exists` · 401"
+            "description": "**Purpose:** Open a dispute on a milestone.\n**Auth:** Authenticated — milestone participants (Zod-validated body).\n**Body:** `reason` (required, enum: NON_PAYMENT | POOR_QUALITY | SCOPE_DISAGREEMENT | MISSED_DEADLINE | NON_DELIVERY | FRAUD | OTHER), `description` (required, ≤5000), `evidence?` (array of `{name?,url,mimeType?}`).\n**Success:** 201 `{\"success\":true,\"message\":\"Dispute opened successfully\"}`\n**Errors:** 400 `Reason and description are required` / `Invalid dispute reason` (Zod) · 403 `You are not part of this milestone` · 404 `Milestone not found` · 409 `An active dispute already exists` · 401"
           }
         },
         {
@@ -724,7 +724,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": { "mode": "raw", "raw": "{\n  \"decision\": \"RESOLVED_FREELANCER\",\n  \"resolution\": \"Evidence shows the milestone was delivered as agreed; releasing funds to the freelancer.\"\n}" },
             "url": { "raw": "{{base_url}}/disputes/:disputeId/resolve", "host": ["{{base_url}}"], "path": ["disputes", ":disputeId", "resolve"], "variable": [{ "key": "disputeId", "value": "<disputeId>" }] },
-            "description": "**Purpose:** Resolve a dispute (admin decision).\n**Auth:** ADMIN only.\n**Body:** `decision` (required: RESOLVED_CLIENT | RESOLVED_FREELANCER | PARTIAL_RESOLUTION), `resolution` (required string).\n**Success:** 200 `{\"success\":true,\"message\":\"Dispute resolved successfully\"}`\n**Errors:** 400 `Invalid dispute decision` · 400 `Resolution explanation is required` · 500 (thrown): `Dispute not found` · `Dispute has already been resolved` · 401/403"
+            "description": "**Purpose:** Resolve a dispute (admin decision).\n**Auth:** ADMIN only (Zod-validated body).\n**Body:** `decision` (required: RESOLVED_CLIENT | RESOLVED_FREELANCER | PARTIAL_RESOLUTION), `resolution` (required string, non-empty after trim).\n**Success:** 200 `{\"success\":true,\"message\":\"Dispute resolved successfully\"}`\n**Errors:** 400 `Invalid dispute decision` / `Resolution explanation is required` (Zod) · 400 `Dispute has already been resolved` · 404 `Dispute not found` · 401/403"
           }
         },
         {
@@ -737,7 +737,7 @@
               "path": ["disputes"],
               "query": [{ "key": "status", "value": "OPEN", "description": "filter by status" }]
             },
-            "description": "**Purpose:** List all disputes (filterable).\n**Auth:** ADMIN only.\n**Params:** query `status`.\n**Success:** 200 `{\"success\":true,\"data\":{\"disputes\":[...,\"project\":{},\"milestone\":{},\"openedBy\":{},\"against\":{},\"resolvedBy\":{}]}}`\n**Errors:** 401 · 403"
+            "description": "**Purpose:** List all disputes (filterable).\n**Auth:** ADMIN only.\n**Params:** query `status` (dispute-status enum) — schema-validated (Zod).\n**Success:** 200 `{\"success\":true,\"data\":{\"disputes\":[...,\"project\":{},\"milestone\":{},\"openedBy\":{},\"against\":{},\"resolvedBy\":{}]}}`\n**Errors:** 400 query validation (`errors[]`) · 401 · 403"
           }
         },
         {
@@ -763,7 +763,7 @@
               "path": ["notifications"],
               "query": [{ "key": "limit", "value": "15", "description": "default 15, min 1, max 50" }]
             },
-            "description": "**Purpose:** Get my recent notifications (project activity feed).\n**Auth:** Any authenticated role.\n**Params:** query `limit` (default 15, 1-50).\n**Success:** 200 `{\"success\":true,\"data\":{\"notifications\":[{\"type\",\"project\":{\"title\"},\"milestone\":{\"title\"},\"user\":{\"name\"},\"message\",\"createdAt\"}]}}`\n**Errors:** 401 · 500"
+            "description": "**Purpose:** Get my recent notifications (project activity feed).\n**Auth:** Any authenticated role.\n**Params:** query `limit` (default 15, 1-50) — schema-validated (Zod).\n**Success:** 200 `{\"success\":true,\"data\":{\"notifications\":[{\"type\",\"project\":{\"title\"},\"milestone\":{\"title\"},\"user\":{\"name\"},\"message\",\"createdAt\"}]}}`\n**Errors:** 400 query validation (`errors[]`) · 401 · 500"
           }
         }
       ]

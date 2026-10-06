@@ -147,10 +147,27 @@ const resetPasswordSchema =
   });
 
 
+/*
+ * Verify email (?token=...)
+ */
+const verifyEmailQuerySchema =
+  z.object({
+    token: z
+      .string({
+        message: "Verification token is required"
+      })
+      .min(
+        1,
+        "Verification token is required"
+      )
+  });
+
+
 module.exports = {
   registerSchema,
   loginSchema,
   resendVerificationSchema,
   forgotPasswordSchema,
-  resetPasswordSchema
+  resetPasswordSchema,
+  verifyEmailQuerySchema
 };
