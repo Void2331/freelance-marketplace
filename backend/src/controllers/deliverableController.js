@@ -3,7 +3,7 @@ const path = require("path");
 const asyncHandler = require("../utils/asyncHandler.js");
 const AppError = require("../utils/AppError.js");
 
-const Milestone = require("../models/Milestone");
+const Milestone = require("../models/milestone.js");
 const MilestoneSubmission = require("../models/MilestoneSubmission");
 
 const getUserId = (req) => {
