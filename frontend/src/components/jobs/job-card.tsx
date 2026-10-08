@@ -9,10 +9,10 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-import type { data } from "@/types/job";
+import type { Job } from "@/types/job";
 
 interface JobCardProps {
-  job: data;
+  job: Job;
 }
 
 export default function JobCard({
@@ -21,7 +21,7 @@ export default function JobCard({
   const clientName =
     typeof job.client === "string"
       ? "Client"
-      : job.client[0].name;
+      : job.client.name;
 
   return (
     <article className="group rounded-2xl border bg-white p-6 transition hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-lg">

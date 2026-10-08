@@ -24,6 +24,8 @@ const aiRoutes = require("./src/routes/aiRoutes");
 const adminRoutes = require("./src/routes/adminRoutes");
 const contractRoutes = require("./src/routes/contractRoutes");
 const walletTransactionRoutes = require("./src/routes/walletTransactionRoutes");
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = require("./src/config/swagger");
 
 
 const errorHandler = require("./src/middleware/errorMiddleware");
@@ -31,6 +33,25 @@ const errorHandler = require("./src/middleware/errorMiddleware");
 const app = express();
 // Needed on Render/Railway/Heroku so rate limiting sees the real client IP.
 app.set("trust proxy", 1);
+
+/*
+|--------------------------------------------------------------------------
+| Swagger / OpenAPI Documentation
+|--------------------------------------------------------------------------
+*/
+
+app.use(
+  "/api-docs",
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerDocument, {
+    explorer: true,
+    customSiteTitle: "Freelance Marketplace API Docs",
+  })
+);
+
+app.get("/api-docs/openapi.json", (req, res) => {
+  res.json(swaggerDocument);
+});
 
 app.use(helmet());
 

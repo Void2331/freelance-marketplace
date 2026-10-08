@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const { startAutoApprovalJob } = require("./src/services/autoApproval");
 const app = require("./app");
 const connectDB = require("./src/config/db");
@@ -9,7 +10,7 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    app.listen(PORT, () => {
+    app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on port ${PORT}`);
       console.log(`API: http://localhost:${PORT}`);
     });
@@ -18,6 +19,6 @@ const startServer = async () => {
     process.exit(1);
   }
 };
-startAutoApprovalJob();
 
+startAutoApprovalJob();
 startServer();
