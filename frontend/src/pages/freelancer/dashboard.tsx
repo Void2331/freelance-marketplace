@@ -1,3 +1,4 @@
+
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -26,7 +27,6 @@ import { useWallet } from "@/hooks/use-wallet";
 import { useMyProjects } from "@/hooks/use-projects";
 import { useMyProposals } from "@/hooks/use-proposals";
 import { useJobs } from "@/hooks/use-jobs";
-
 
 export default function FreelancerDashboard() {
   const { user } = useAuth();
@@ -60,20 +60,19 @@ export default function FreelancerDashboard() {
   const activeProjects = projects.filter(
     (project) =>
       project.status === "IN_PROGRESS" ||
-      project.status === "ACTIVE",
+      project.status === "AWAITING_PAYMENT" ||
+      project.status === "DISPUTED",
   );
 
   const pendingProposals = proposals.filter(
     (proposal) =>
-      proposal.status === "PENDING" ||
-      proposal.status === "SUBMITTED",
+      proposal.status !== "ACCEPTED" &&
+      proposal.status !== "REJECTED" &&
+      proposal.status !== "WITHDRAWN",
   );
 
   const suggestedJobs = jobs
-    .filter(
-      (job) =>
-        job.status === "OPEN",
-    )
+    .filter((job) => job.status === "OPEN")
     .slice(0, 5);
 
   const isLoading =
@@ -143,7 +142,7 @@ export default function FreelancerDashboard() {
                     <p className="mt-2 text-2xl font-semibold">
                       {currency}{" "}
                       {Number(
-                        wallet?.totalEarnings ?? 0,
+                        wallet?.totalEarned ?? 0,
                       ).toLocaleString()}
                     </p>
                   </div>
@@ -452,8 +451,9 @@ export default function FreelancerDashboard() {
                         >
                           <div className="min-w-0">
                             <p className="truncate font-medium">
-                              {proposal.job?.title ??
-                                "Job Proposal"}
+                              {typeof proposal.job === "object"
+                                ? proposal.job.title
+                                : "Job Proposal"}
                             </p>
 
                             <p className="mt-1 text-xs text-zinc-500">
