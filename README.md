@@ -981,3 +981,6 @@ MongoDB + Mongoose
 This project is currently intended as a learning/development project.
 
 License information can be added when the project is prepared for public distribution.
+## Maintainers
+* **Void2331**
+* **josnach**
