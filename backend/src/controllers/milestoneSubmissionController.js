@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
 const Milestone = require("../models/milestone.js");
-const MilestoneSubmission = require("../models/milestoneSubmission.js");
+const MilestoneSubmission = require("../models/MilestoneSubmission.js");
 const ProjectActivity = require("../models/projectActivity.js");
 const Contract = require("../models/contract.js");
 const User = require("../models/user.js");

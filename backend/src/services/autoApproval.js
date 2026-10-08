@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const Milestone = require("../models/milestone.js");
 const Payment = require("../models/Payment.js");
-const MilestoneSubmission = require("../models/milestoneSubmission.js");
+const MilestoneSubmission = require("../models/MilestoneSubmission.js");
 const ProjectActivity = require("../models/projectActivity.js");
 const User = require("../models/user.js");
 const emailService = require("./email.js");

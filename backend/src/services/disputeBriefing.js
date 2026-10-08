@@ -1,6 +1,6 @@
 const Dispute = require("../models/Dispute.js");
 const Milestone = require("../models/milestone.js");
-const MilestoneSubmission = require("../models/milestoneSubmission.js");
+const MilestoneSubmission = require("../models/MilestoneSubmission.js");
 const Message = require("../models/message.js");
 const ProjectActivity = require("../models/projectActivity.js");
 const Payment = require("../models/Payment.js");
