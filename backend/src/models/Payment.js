@@ -7,7 +7,6 @@ const paymentSchema = new mongoose.Schema(
     // =========================
     reference: {
       type: String,
-      required: true,
       unique: true,
       index: true,
     },
@@ -22,12 +21,12 @@ const paymentSchema = new mongoose.Schema(
       index: true,
     },
 
-    milestone: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Milestone",
-      required: true,
-      index: true,
-    },
+ milestone: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Milestone",
+  required: true,
+  index: true,
+},
 
     // =========================
     // USERS
@@ -144,6 +143,7 @@ const paymentSchema = new mongoose.Schema(
       default: null,
     },
 
+
     // =========================
     // PROVIDER / WEBHOOK DATA
     // =========================
@@ -156,6 +156,15 @@ const paymentSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+paymentSchema.index(
+  { milestone: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ["PROCESSING", "FUNDED"] } },
+    name: "milestone_active_payment_unique",
+  }
+);
+
 
 module.exports =
   mongoose.models.Payment ||

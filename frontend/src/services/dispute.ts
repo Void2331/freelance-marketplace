@@ -2,6 +2,7 @@ import { api } from "./api";
 
 import type {
   Dispute,
+  DisputeBrief,
   DisputeDecision,
   OpenDisputeRequest,
 } from "@/types/dispute";
@@ -25,10 +26,12 @@ export async function resolveDispute(
   disputeId: string,
   decision: DisputeDecision,
   resolution: string,
+  freelancerPercent?: number,
 ): Promise<void> {
   await api.patch<OpenDisputeResponse>(`/disputes/${disputeId}/resolve`, {
     decision,
     resolution,
+    freelancerPercent,
   });
 }
 
@@ -52,4 +55,21 @@ export async function getProjectDisputes(
     `/projects/${projectId}/disputes`,
   );
   return response.data.data.disputes;
+}
+
+// Admin only. Generates (or regenerates) the AI case briefing.
+export async function generateDisputeBrief(
+  disputeId: string,
+): Promise<DisputeBrief> {
+  const response = await api.post<{
+    success: boolean;
+    data: { brief: DisputeBrief };
+  }>(
+    `/disputes/${disputeId}/brief`,
+    {},
+    // The AI can take a while; the default 15s is too short.
+    { timeout: 60000 },
+  );
+
+  return response.data.data.brief;
 }

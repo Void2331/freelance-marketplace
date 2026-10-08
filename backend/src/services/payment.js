@@ -14,8 +14,8 @@ const paystack = axios.create({
 
   headers: {
     Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-    "Content-Type": "application/json",
-  },
+    "Content-Type": "application/json"
+  }
 });
 
 /*
@@ -29,7 +29,9 @@ const calculateFees = (amount) => {
     Number(process.env.PLATFORM_CLIENT_FEE_PERCENT) || 5;
 
   const freelancerFeePercent =
-    Number(process.env.PLATFORM_FREELANCER_FEE_PERCENT) || 5;
+    Number(
+      process.env.PLATFORM_FREELANCER_FEE_PERCENT
+    ) || 5;
 
   const clientFee =
     amount * (clientFeePercent / 100);
@@ -43,7 +45,7 @@ const calculateFees = (amount) => {
   return {
     clientFee,
     freelancerFee,
-    freelancerNetAmount,
+    freelancerNetAmount
   };
 };
 
@@ -55,7 +57,7 @@ const calculateFees = (amount) => {
 
 const initializeMilestonePayment = async ({
   milestoneId,
-  clientId,
+  clientId
 }) => {
   const milestone = await Milestone.findById(
     milestoneId
@@ -89,23 +91,45 @@ const initializeMilestonePayment = async ({
     );
   }
 
-  const existingPayment =
-    await Payment.findOne({
-      milestone: milestone._id,
-      status: {
-        $in: [
-          "PROCESSING",
-          "FUNDED",
-        ],
-      },
-    });
+  const existingPayment = await Payment.findOne({
+  milestone: milestone._id,
+  status: { $in: ["PROCESSING", "FUNDED"] },
+});
 
-  if (existingPayment) {
+if (existingPayment) {
+  if (existingPayment.status === "FUNDED") {
+    throw new AppError("This milestone has already been funded", 400);
+  }
+
+  // PROCESSING: check with Paystack before blocking
+  let txStatus = null;
+
+  try {
+    const { data } = await paystack.get(
+      `/transaction/verify/${existingPayment.providerReference}`
+    );
+    txStatus = data.data.status;
+  } catch (err) {
+    // 404 means Paystack never saw this reference, so it's safe to retire
+    if (err.response?.status !== 404) {
+      throw new AppError(
+        "Unable to confirm the status of the existing payment. Try again shortly.",
+        502
+      );
+    }
+  }
+
+  if (["success", "ongoing", "pending", "processing", "queued"].includes(txStatus)) {
     throw new AppError(
-      "This milestone already has an active payment",
-      400
+      "A payment for this milestone is already in progress or being confirmed",
+      409
     );
   }
+
+  // abandoned / failed / reversed / never initialized: retire it
+  existingPayment.status = "CANCELLED";
+  await existingPayment.save();
+}
 
   const client = await User.findById(clientId);
 
@@ -123,19 +147,6 @@ const initializeMilestonePayment = async ({
   const totalClientCharge =
     milestone.amount + fees.clientFee;
 
-  /*
-  |--------------------------------------------------------------------------
-  | Generate Payment Reference
-  |--------------------------------------------------------------------------
-  |
-  | One reference is used consistently for:
-  |
-  | 1. Internal Payment.reference
-  | 2. Payment.providerReference
-  | 3. Paystack transaction reference
-  |
-  */
-
   const reference =
     `FM-${milestone._id}-${crypto
       .randomBytes(6)
@@ -148,34 +159,19 @@ const initializeMilestonePayment = async ({
   */
 
   const payment = await Payment.create({
-    // Internal payment reference
-    reference,
-
     project: milestone.project._id,
-
     milestone: milestone._id,
-
     client: milestone.client,
-
     freelancer: milestone.freelancer,
-
     amount: milestone.amount,
-
     clientFee: fees.clientFee,
-
     freelancerFee: fees.freelancerFee,
-
     freelancerNetAmount:
       fees.freelancerNetAmount,
-
     currency: milestone.currency,
-
     status: "PROCESSING",
-
     provider: "PAYSTACK",
-
-    // Paystack transaction reference
-    providerReference: reference,
+    providerReference: reference
   });
 
   /*
@@ -198,16 +194,13 @@ const initializeMilestonePayment = async ({
 
     metadata: {
       paymentId: payment._id,
-
       paymentReference:
-        payment.reference,
-
+        payment.providerReference,
       amount:
         payment.amount,
-
       currency:
-        payment.currency,
-    },
+        payment.currency
+    }
   });
 
   /*
@@ -230,8 +223,7 @@ const initializeMilestonePayment = async ({
 
         reference,
 
-        callback_url:
-          `${process.env.CLIENT_URL}/payment/callback`,
+        callback_url: `${process.env.CLIENT_URL}/payment/callback`,
 
         metadata: {
           paymentId:
@@ -244,8 +236,8 @@ const initializeMilestonePayment = async ({
             milestone.project._id.toString(),
 
           clientId:
-            clientId.toString(),
-        },
+            clientId.toString()
+        }
       }
     );
 
@@ -266,7 +258,7 @@ const initializeMilestonePayment = async ({
       clientFee:
         fees.clientFee,
 
-      totalClientCharge,
+      totalClientCharge
     };
   } catch (error) {
     /*
@@ -309,85 +301,85 @@ const initializeMilestonePayment = async ({
 |--------------------------------------------------------------------------
 */
 
-const verifyPayment = async (reference) => {
-  const payment = await Payment.findOne({
-    $or: [
-      {
-        reference,
-      },
-      {
-        providerReference: reference,
-      },
-    ],
-  });
+const verifyPayment = async ({ reference, userId }) => {
+  if (!reference || typeof reference !== "string") {
+    throw new AppError("Payment reference is required", 400);
+  }
+
+  const payment = await Payment.findOne({ providerReference: reference });
 
   if (!payment) {
-    throw new AppError(
-      "Payment record not found",
-      404
-    );
+    throw new AppError("Payment record not found", 404);
   }
 
-  const response = await paystack.get(
-    `/transaction/verify/${reference}`
-  );
-
-  const transaction =
-    response.data.data;
-
-  /*
-  |--------------------------------------------------------------------------
-  | Verify Amount
-  |--------------------------------------------------------------------------
-  */
-
-  const expectedAmount =
-    Math.round(
-      (payment.amount +
-        payment.clientFee) *
-        100
-    );
-
-  if (
-    Number(transaction.amount) !==
-    expectedAmount
-  ) {
-    throw new AppError(
-      "Payment amount mismatch",
-      400
-    );
+  // Only the client who made the payment can verify it
+  if (payment.client.toString() !== userId.toString()) {
+    throw new AppError("You are not authorized to verify this payment", 403);
   }
 
-  /*
-  |--------------------------------------------------------------------------
-  | Return Verification Result
-  |--------------------------------------------------------------------------
-  */
+  let transaction;
+
+  try {
+    const response = await paystack.get(
+      `/transaction/verify/${encodeURIComponent(reference)}`
+    );
+    transaction = response.data.data;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      throw new AppError("Transaction not found on Paystack", 404);
+    }
+
+    console.error(
+      "Paystack verify error:",
+      error.response?.data || error.message
+    );
+
+    throw new AppError("Unable to verify payment right now. Try again shortly.", 502);
+  }
+
+  // Sanity checks that the response is for THIS payment
+  if (transaction.reference !== payment.providerReference) {
+    throw new AppError("Payment reference mismatch", 400);
+  }
+
+  // Amount and currency only matter once Paystack says it was paid
+  if (transaction.status === "success") {
+    const expectedAmount = Math.round(
+      (payment.amount + payment.clientFee) * 100
+    );
+
+    if (Number(transaction.amount) !== expectedAmount) {
+      throw new AppError("Payment amount mismatch", 400);
+    }
+
+    if (
+      transaction.currency &&
+      transaction.currency.toUpperCase() !== payment.currency
+    ) {
+      throw new AppError("Payment currency mismatch", 400);
+    }
+  }
+
+  // Harmless bookkeeping; does NOT change payment.status or fund anything
+  payment.providerStatus = transaction.status;
+  payment.providerTransactionId = String(transaction.id);
+  await payment.save();
 
   return {
-    payment,
-
-    transaction: {
-      status:
-        transaction.status,
-
-      reference:
-        transaction.reference,
-
-      amount:
-        transaction.amount,
-
-      currency:
-        transaction.currency,
-
-      id:
-        transaction.id,
-    },
+    paymentId: payment._id,
+    reference: payment.providerReference,
+    paymentStatus: payment.status,         // your status: PROCESSING / FUNDED / ...
+    providerStatus: transaction.status,    // Paystack's: success / abandoned / failed ...
+    // Paid at Paystack but webhook hasn't settled yet
+    awaitingSettlement:
+      transaction.status === "success" && payment.status === "PROCESSING",
+    amount: payment.amount,
+    clientFee: payment.clientFee,
+    currency: payment.currency,
   };
 };
-
 module.exports = {
   initializeMilestonePayment,
   calculateFees,
-  verifyPayment,
+  verifyPayment
 };

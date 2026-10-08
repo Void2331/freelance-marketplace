@@ -8,6 +8,7 @@ import {
   getBanks,
   getWallet,
   getWithdrawalAccount,
+  listWalletTransactions,
   listWithdrawals,
   requestWithdrawal,
   setupWithdrawalAccount,
@@ -17,9 +18,14 @@ import type { SetupWithdrawalAccountRequest } from "@/types/wallet";
 
 export const walletKeys = {
   all: ["wallet"] as const,
+
   banks: () => [...walletKeys.all, "banks"] as const,
+
   account: () => [...walletKeys.all, "account"] as const,
+
   withdrawals: () => [...walletKeys.all, "withdrawals"] as const,
+
+  transactions: () => [...walletKeys.all, "transactions"] as const,
 };
 
 export function useWallet() {
@@ -52,6 +58,13 @@ export function useWithdrawals() {
   });
 }
 
+export function useWalletTransactions() {
+  return useQuery({
+    queryKey: walletKeys.transactions(),
+    queryFn: listWalletTransactions,
+  });
+}
+
 export function useSetupWithdrawalAccount() {
   const queryClient = useQueryClient();
 
@@ -60,7 +73,9 @@ export function useSetupWithdrawalAccount() {
       setupWithdrawalAccount(data),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: walletKeys.account() });
+      queryClient.invalidateQueries({
+        queryKey: walletKeys.account(),
+      });
     },
   });
 }
@@ -72,8 +87,17 @@ export function useRequestWithdrawal() {
     mutationFn: (amount: number) => requestWithdrawal(amount),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: walletKeys.all });
-      queryClient.invalidateQueries({ queryKey: walletKeys.withdrawals() });
+      queryClient.invalidateQueries({
+        queryKey: walletKeys.all,
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: walletKeys.withdrawals(),
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: walletKeys.transactions(),
+      });
     },
   });
 }

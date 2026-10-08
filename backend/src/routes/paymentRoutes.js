@@ -5,7 +5,14 @@ const {
   verifyPayment
 } = require("../controllers/paymentController.js");
 
+const {
+  downloadReceipt,
+  downloadMilestoneReceipt,
+  downloadEarningsStatement,
+} = require("../controllers/documentController.js");
+
 const protect = require("../middleware/authMiddleware.js");
+const authorize = require("../middleware/roleMiddleware.js");
 const validate = require("../middleware/validateMiddleware.js");
 
 const {
@@ -27,6 +34,22 @@ router.post(
   protect,
   validate(verifyPaymentSchema),
   verifyPayment
+);
+
+// PDF documents. Each user can only ever get their own.
+router.get(
+  "/receipt/milestone/:milestoneId",
+  protect,
+  downloadMilestoneReceipt
+);
+
+router.get("/receipt/:paymentId", protect, downloadReceipt);
+
+router.get(
+  "/earnings-statement",
+  protect,
+  authorize("FREELANCER"),
+  downloadEarningsStatement
 );
 
 /*

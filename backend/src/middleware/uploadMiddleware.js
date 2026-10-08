@@ -1,52 +1,40 @@
-const fs = require("fs");
-const path = require("path");
 const multer = require("multer");
 
-const AppError = require("../utils/AppError.js");
+const storage = multer.memoryStorage();
 
-const AVATAR_DIR = path.join(__dirname, "..", "..", "uploads", "avatars");
-
-fs.mkdirSync(AVATAR_DIR, { recursive: true });
-
-const ALLOWED_MIME_TYPES = [
+const allowedTypes = [
   "image/jpeg",
   "image/png",
   "image/webp",
-  "image/gif",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/zip",
+  "application/x-zip-compressed",
+  "text/plain",
 ];
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, AVATAR_DIR);
-  },
-
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
-    const unique = `${req.user._id}-${Date.now()}${ext}`;
-
-    cb(null, unique);
-  },
-});
-
 const fileFilter = (req, file, cb) => {
-  if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-    return cb(
-      new AppError(
-        "Only JPEG, PNG, WEBP, or GIF images are allowed",
-        400
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        "File type not supported. Allowed: JPG, PNG, WEBP, PDF, DOC, DOCX, ZIP and TXT."
       )
     );
   }
-
-  cb(null, true);
 };
 
-const uploadAvatar = multer({
+const upload = multer({
   storage,
-  fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
-}).single("avatar");
 
-module.exports = uploadAvatar;
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+    files: 5,
+  },
+
+  fileFilter,
+});
+
+module.exports = upload;

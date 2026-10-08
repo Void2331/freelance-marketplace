@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Loader2 } from "lucide-react";
 
 import {
   Controller,
   useForm,
+  useWatch,
 } from "react-hook-form";
 
 import {
@@ -34,6 +35,9 @@ import {
   type JobFormValues,
 } from "@/lib/validations/job";
 import { getErrorMessage } from "@/lib/errors";
+import { MilestonePlanEditor } from "@/components/jobs/milestone-plan-editor";
+import { planTotal } from "@/lib/milestone-plan";
+import type { MilestonePlanItem } from "@/types/job";
 
 export default function CreateJobPage() {
   const navigate = useNavigate();
@@ -71,6 +75,22 @@ export default function CreateJobPage() {
     },
   });
 
+  const [milestonePlan, setMilestonePlan] = useState<MilestonePlanItem[]>([]);
+  const [loadedPlanFor, setLoadedPlanFor] = useState<string>();
+
+  // When editing, load the saved plan once the job arrives. (Adjusting state
+  // while rendering is React's recommended alternative to an effect here.)
+  if (existingJob && existingJob._id !== loadedPlanFor) {
+    setLoadedPlanFor(existingJob._id);
+    setMilestonePlan(existingJob.milestonePlan ?? []);
+  }
+
+  const [watchedTitle, watchedDescription, watchedBudget, watchedBudgetType, watchedDeadline] =
+    useWatch({
+      control,
+      name: ["title", "description", "budget", "budgetType", "deadline"],
+    });
+
   useEffect(() => {
     if (!existingJob) return;
 
@@ -90,6 +110,18 @@ export default function CreateJobPage() {
   async function onSubmit(
     values: JobFormValues,
   ) {
+    if (milestonePlan.length > 0) {
+      if (milestonePlan.some((item) => !item.title.trim())) {
+        toast.error("Every milestone needs a title");
+        return;
+      }
+
+      if (planTotal(milestonePlan) !== 100) {
+        toast.error("Milestone percentages must add up to 100");
+        return;
+      }
+    }
+
     try {
       const payload = {
           title: values.title,
@@ -118,6 +150,9 @@ export default function CreateJobPage() {
                   values.deadline,
                 ).toISOString()
               : undefined,
+
+          // An empty list clears a plan the client removed while editing.
+          milestonePlan,
       };
 
       const job = isEdit
@@ -315,6 +350,20 @@ export default function CreateJobPage() {
             </p>
           )}
         </div>
+
+        <MilestonePlanEditor
+          plan={milestonePlan}
+          onChange={setMilestonePlan}
+          title={watchedTitle ?? ""}
+          description={watchedDescription ?? ""}
+          budget={
+            typeof watchedBudget === "number" && !Number.isNaN(watchedBudget)
+              ? watchedBudget
+              : undefined
+          }
+          budgetType={watchedBudgetType ?? "FIXED"}
+          deadline={watchedDeadline}
+        />
 
         <div className="flex justify-end gap-3 border-t pt-6">
           <Button

@@ -14,6 +14,9 @@ const Job = require("../models/job");
 const Payment = require("../models/Payment");
 const Contract = require("../models/contract");
 const ProjectActivity = require("../models/projectActivity");
+const {
+  planMilestoneDrafts,
+} = require("../services/milestoneSplit.js");
 
 
 /*
@@ -181,6 +184,10 @@ const acceptProposal = async (req, res, next) => {
     let createdMilestone = null;
     let createdPayment = null;
     let acceptedProposal = null;
+    let allMilestones = [];
+
+    // The job's payment plan is used unless the client opts out.
+    const usePaymentPlan = req.body?.usePaymentPlan !== false;
 
     await session.withTransaction(async () => {
       /*
@@ -387,6 +394,21 @@ const acceptProposal = async (req, res, next) => {
       ==================================================
       */
 
+      /*
+        If the job has a valid payment plan, its shares are applied
+        to the freelancer's bid and the project gets one milestone per
+        step. Otherwise (no plan, or a plan we cannot trust) it gets a
+        single milestone for the whole bid, exactly as before.
+      */
+      const planDrafts = usePaymentPlan
+        ? planMilestoneDrafts(
+            proposal.job.milestonePlan,
+            proposal.bidAmount
+          )
+        : [];
+
+      const firstDraft = planDrafts[0];
+
       const milestones =
         await Milestone.create(
           [
@@ -401,12 +423,15 @@ const acceptProposal = async (req, res, next) => {
                 proposal.freelancer._id,
 
               title:
+                firstDraft?.title ??
                 "Project Milestone 1",
 
               description:
+                firstDraft?.description ??
                 "Complete the agreed project work.",
 
               amount:
+                firstDraft?.amount ??
                 proposal.bidAmount,
 
               currency: "NGN",
@@ -461,14 +486,14 @@ const acceptProposal = async (req, res, next) => {
                 proposal.freelancer._id,
 
               amount:
-                proposal.bidAmount,
+                createdMilestone.amount,
 
               clientFee: 0,
 
               freelancerFee: 0,
 
               freelancerNetAmount:
-                proposal.bidAmount,
+                createdMilestone.amount,
 
               currency: "NGN",
 
@@ -528,6 +553,70 @@ const acceptProposal = async (req, res, next) => {
       await createdProject.save({
         session,
       });
+
+      /*
+      ==================================================
+      14b. REMAINING MILESTONES FROM THE PAYMENT PLAN
+      Created unfunded (PENDING). The client funds each one
+      from the workroom, exactly like any other milestone.
+      ==================================================
+      */
+
+      allMilestones = [createdMilestone];
+
+      if (planDrafts.length > 1) {
+        const rest = await Milestone.create(
+          planDrafts.slice(1).map((draft) => ({
+            project: createdProject._id,
+            client: clientId,
+            freelancer: proposal.freelancer._id,
+            title: draft.title,
+            description: draft.description,
+            amount: draft.amount,
+            currency: "NGN",
+            order: draft.order,
+            status: "PENDING",
+          })),
+          {
+            session,
+            ordered: true,
+          }
+        );
+
+        allMilestones = [createdMilestone, ...rest];
+      }
+
+      /*
+      ==================================================
+      14b. REMAINING MILESTONES FROM THE PAYMENT PLAN
+      Created unfunded (PENDING). The client funds each one
+      from the workroom, exactly like any other milestone.
+      ==================================================
+      */
+
+      allMilestones = [createdMilestone];
+
+      if (planDrafts.length > 1) {
+        const rest = await Milestone.create(
+          planDrafts.slice(1).map((draft) => ({
+            project: createdProject._id,
+            client: clientId,
+            freelancer: proposal.freelancer._id,
+            title: draft.title,
+            description: draft.description,
+            amount: draft.amount,
+            currency: "NGN",
+            order: draft.order,
+            status: "PENDING",
+          })),
+          {
+            session,
+            ordered: true,
+          }
+        );
+
+        allMilestones = [createdMilestone, ...rest];
+      }
 
       /*
       ==================================================
@@ -605,7 +694,9 @@ const acceptProposal = async (req, res, next) => {
               "CONTRACT_CREATED",
 
             message:
-              "Proposal accepted. Project, contract, milestone and payment were created and are awaiting payment.",
+              allMilestones.length > 1
+                ? `Proposal accepted. The job's payment plan was applied: ${allMilestones.length} milestones were created and are awaiting payment.`
+                : "Proposal accepted. Project, contract, milestone and payment were created and are awaiting payment.",
           },
         ],
         {
@@ -631,7 +722,9 @@ const acceptProposal = async (req, res, next) => {
       success: true,
 
       message:
-        "Proposal accepted. Project, contract, milestone and payment created successfully.",
+        allMilestones.length > 1
+          ? `Proposal accepted. Project, contract and ${allMilestones.length} milestones from the payment plan were created.`
+          : "Proposal accepted. Project, contract, milestone and payment created successfully.",
 
       data: {
         projectId:
@@ -642,6 +735,14 @@ const acceptProposal = async (req, res, next) => {
 
         milestoneId:
           createdMilestone?._id,
+
+        milestoneIds:
+          allMilestones.map(
+            (milestone) => milestone._id
+          ),
+
+        milestoneCount:
+          allMilestones.length,
 
         paymentId:
           createdPayment?._id,

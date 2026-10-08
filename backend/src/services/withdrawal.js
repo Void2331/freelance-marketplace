@@ -246,16 +246,17 @@ const requestWithdrawal = async (
   let withdrawal;
 
   try {
-    await session.withTransaction(async () => {
-      const balanceBefore = wallet.availableBalance;
-      const balanceAfter = balanceBefore - amount;
+await session.withTransaction(async () => {
+  const updatedWallet = await Wallet.findOneAndUpdate(
+    { user: freelancerId, availableBalance: { $gte: amount } },
+    { $inc: { availableBalance: -amount, totalWithdrawn: amount } },
+    { new: true, session }
+  );
 
-      wallet.availableBalance = balanceAfter;
-      wallet.totalWithdrawn =
-        (wallet.totalWithdrawn || 0) + amount;
+  if (!updatedWallet) throw new AppError("Insufficient available balance", 400);
 
-      await wallet.save({ session });
-
+  const balanceAfter = updatedWallet.availableBalance;
+  const balanceBefore = balanceAfter + amount;
       const created = await Withdrawal.create(
         [
           {

@@ -4,12 +4,10 @@ import { Filter, Search } from "lucide-react";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
-} from "@/components/ui/pagination"
+} from "@/components/ui/pagination";
 
 import { Button } from "@/components/ui/button";
 import JobCard from "@/components/jobs/job-card";
@@ -28,21 +26,27 @@ export default function BrowseJobs() {
   const [category, setCategory] = useState("");
   const [sort, setSort] = useState<SortOption>("recent");
 
-  const {currentPage, setCurrentPage} = useContext(PageContext);
+  const { currentPage, setCurrentPage } =
+    useContext(PageContext);
 
   // Unfiltered, just to build the category dropdown — it shouldn't
   // shrink to only the currently-selected category.
   const jobsData = useJobs({
-    page:
-      currentPage || 1,
-  });;
+    page: currentPage || 1,
+  });
 
   const allOpenJobs = jobsData.data?.data || [];
 
   const categories = useMemo(() => {
     const distinct = new Set(
-      allOpenJobs.map((job) => job.category).filter((value): value is string => Boolean(value)),
+      allOpenJobs
+        .map((job) => job.category)
+        .filter(
+          (value): value is string =>
+            Boolean(value),
+        ),
     );
+
     return Array.from(distinct).sort();
   }, [allOpenJobs]);
 
@@ -51,7 +55,10 @@ export default function BrowseJobs() {
     data,
     isLoading,
     isError,
-  } = useJobs({ category: category || undefined, page: currentPage || 1 });
+  } = useJobs({
+    category: category || undefined,
+    page: currentPage || 1,
+  });
 
   const jobs = data?.data || [];
   const totalPages = data?.totalPages || 1;
@@ -59,7 +66,9 @@ export default function BrowseJobs() {
   function toggleBudgetType(type: BudgetType) {
     setBudgetTypes((current) =>
       current.includes(type)
-        ? current.filter((item) => item !== type)
+        ? current.filter(
+            (item) => item !== type,
+          )
         : [...current, type],
     );
   }
@@ -68,24 +77,44 @@ export default function BrowseJobs() {
     const term = query.trim().toLowerCase();
 
     const filtered = jobs.filter((job) => {
-      if (budgetTypes.length > 0 && !budgetTypes.includes(job.budgetType)) {
+      if (
+        budgetTypes.length > 0 &&
+        !budgetTypes.includes(job.budgetType)
+      ) {
         return false;
       }
 
-      if (!term) return true;
+      if (!term) {
+        return true;
+      }
 
       return (
-        job.title.toLowerCase().includes(term) ||
-        job.description.toLowerCase().includes(term) ||
-        job.skills.some((skill) => skill.toLowerCase().includes(term))
+        job.title
+          .toLowerCase()
+          .includes(term) ||
+        job.description
+          .toLowerCase()
+          .includes(term) ||
+        job.skills.some((skill) =>
+          skill
+            .toLowerCase()
+            .includes(term),
+        )
       );
     });
 
     return filtered.sort((a, b) => {
-      if (sort === "highest") return b.budget - a.budget;
-      if (sort === "lowest") return a.budget - b.budget;
+      if (sort === "highest") {
+        return b.budget - a.budget;
+      }
+
+      if (sort === "lowest") {
+        return a.budget - b.budget;
+      }
+
       return (
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        new Date(b.createdAt).getTime() -
+        new Date(a.createdAt).getTime()
       );
     });
   }, [jobs, query, budgetTypes, sort]);
@@ -104,7 +133,8 @@ export default function BrowseJobs() {
           </h1>
 
           <p className="mt-3 max-w-2xl text-zinc-600">
-            Discover projects that match your skills and experience.
+            Discover projects that match your
+            skills and experience.
           </p>
         </div>
 
@@ -124,11 +154,18 @@ export default function BrowseJobs() {
                 className="h-12 w-full bg-transparent px-3 text-sm outline-none"
                 placeholder="Search jobs by title, skill or keyword"
                 value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
+                onChange={(event) =>
+                  setSearchInput(
+                    event.target.value,
+                  )
+                }
               />
             </div>
 
-            <Button type="submit" className="h-12 px-8">
+            <Button
+              type="submit"
+              className="h-12 px-8"
+            >
               Search
             </Button>
           </div>
@@ -140,20 +177,35 @@ export default function BrowseJobs() {
             <div className="rounded-2xl border bg-white p-5">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4" />
-                <h2 className="font-semibold">Filters</h2>
+
+                <h2 className="font-semibold">
+                  Filters
+                </h2>
               </div>
 
               <div className="mt-6">
-                <p className="text-sm font-medium">Category</p>
+                <p className="text-sm font-medium">
+                  Category
+                </p>
 
                 <select
                   className="mt-3 h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
                   value={category}
-                  onChange={(event) => setCategory(event.target.value)}
+                  onChange={(event) =>
+                    setCategory(
+                      event.target.value,
+                    )
+                  }
                 >
-                  <option value="">All categories</option>
+                  <option value="">
+                    All categories
+                  </option>
+
                   {categories.map((item) => (
-                    <option key={item} value={item}>
+                    <option
+                      key={item}
+                      value={item}
+                    >
                       {item}
                     </option>
                   ))}
@@ -161,24 +213,40 @@ export default function BrowseJobs() {
               </div>
 
               <div className="mt-6 border-t pt-6">
-                <p className="text-sm font-medium">Job type</p>
+                <p className="text-sm font-medium">
+                  Job type
+                </p>
 
                 <div className="mt-3 space-y-2 text-sm text-zinc-600">
                   <label className="flex gap-2">
                     <input
                       type="checkbox"
-                      checked={budgetTypes.includes("FIXED")}
-                      onChange={() => toggleBudgetType("FIXED")}
+                      checked={budgetTypes.includes(
+                        "FIXED",
+                      )}
+                      onChange={() =>
+                        toggleBudgetType(
+                          "FIXED",
+                        )
+                      }
                     />
+
                     Fixed price
                   </label>
 
                   <label className="flex gap-2">
                     <input
                       type="checkbox"
-                      checked={budgetTypes.includes("HOURLY")}
-                      onChange={() => toggleBudgetType("HOURLY")}
+                      checked={budgetTypes.includes(
+                        "HOURLY",
+                      )}
+                      onChange={() =>
+                        toggleBudgetType(
+                          "HOURLY",
+                        )
+                      }
                     />
+
                     Hourly
                   </label>
                 </div>
@@ -192,17 +260,33 @@ export default function BrowseJobs() {
               <p className="text-sm text-zinc-600">
                 {isLoading
                   ? "Loading jobs..."
-                  : `${visibleJobs.length} job${visibleJobs.length === 1 ? "" : "s"} found`}
+                  : `${visibleJobs.length} job${
+                      visibleJobs.length === 1
+                        ? ""
+                        : "s"
+                    } found`}
               </p>
 
               <select
                 className="rounded-lg border bg-white px-3 py-2 text-sm"
                 value={sort}
-                onChange={(event) => setSort(event.target.value as SortOption)}
+                onChange={(event) =>
+                  setSort(
+                    event.target.value as SortOption,
+                  )
+                }
               >
-                <option value="recent">Most recent</option>
-                <option value="highest">Highest budget</option>
-                <option value="lowest">Lowest budget</option>
+                <option value="recent">
+                  Most recent
+                </option>
+
+                <option value="highest">
+                  Highest budget
+                </option>
+
+                <option value="lowest">
+                  Lowest budget
+                </option>
               </select>
             </div>
 
@@ -217,7 +301,8 @@ export default function BrowseJobs() {
               </div>
             ) : isError ? (
               <div className="rounded-2xl border bg-white p-10 text-center text-sm text-zinc-500">
-                Unable to load jobs right now. Please try again.
+                Unable to load jobs right now.
+                Please try again.
               </div>
             ) : visibleJobs.length === 0 ? (
               <div className="rounded-2xl border bg-white p-10 text-center text-sm text-zinc-500">
@@ -226,26 +311,52 @@ export default function BrowseJobs() {
             ) : (
               <div className="space-y-4">
                 {visibleJobs.map((job) => (
-                  <JobCard key={job._id} job={job} />
+                  <JobCard
+                    key={job._id}
+                    job={job}
+                  />
                 ))}
+
                 <div className="mt-6 flex items-center justify-center">
-                        <Pagination>
-                          <PaginationContent>
-                            <PaginationItem>
-                              <PaginationPrevious 
-                              onClick={ () => {
-                                setCurrentPage((prev) => prev > 0 ? prev - 1 : 1);
-                              }} />
-                            </PaginationItem>
-                            <PaginationItem>
-                              <PaginationNext 
-                              onClick={ () => {
-                                setCurrentPage((prev) => prev === totalPages ? totalPages : prev + 1);
-                              }} />
-                            </PaginationItem>
-                          </PaginationContent>
-                        </Pagination>
-                      </div>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => {
+                            setCurrentPage(
+                              (prev) =>
+                                prev > 1
+                                  ? prev - 1
+                                  : 1,
+                            );
+                          }}
+                        />
+                      </PaginationItem>
+
+                      <PaginationItem>
+                        <span className="px-3 text-sm text-zinc-500">
+                          Page{" "}
+                          {currentPage || 1} of{" "}
+                          {totalPages}
+                        </span>
+                      </PaginationItem>
+
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() => {
+                            setCurrentPage(
+                              (prev) =>
+                                prev >=
+                                totalPages
+                                  ? totalPages
+                                  : prev + 1,
+                            );
+                          }}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
               </div>
             )}
           </section>

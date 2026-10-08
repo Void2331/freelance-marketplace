@@ -8,11 +8,18 @@ import {
   createMilestone,
   deleteMilestone,
   getMilestone,
+  getMilestoneSubmissions,
   getProjectMilestones,
   rejectMilestone,
   startMilestone,
   updateMilestone,
+  uploadMilestoneDeliverables,
 } from "@/services/milestone";
+
+import type {
+  MilestoneSubmission,
+  DeliverableAttachment,
+} from "@/types/milestoneSubmission";
 
 import {
   approveMilestone,
@@ -20,13 +27,13 @@ import {
   submitMilestone,
 } from "@/services/workroom";
 
-import {
-  initializePayment,
-} from "@/services/payment";
+import { initializePayment } from "@/services/payment";
 
-import {
-  projectKeys,
-} from "./use-projects";
+import { projectKeys } from "./use-projects";
+
+/* ============================================================
+   QUERY KEYS
+============================================================ */
 
 export const milestoneKeys = {
   all: ["milestones"] as const,
@@ -36,59 +43,84 @@ export const milestoneKeys = {
 
   detail: (id: string) =>
     [...milestoneKeys.all, "detail", id] as const,
+
+  submissions: (milestoneId: string) =>
+    [...milestoneKeys.all, "submissions", milestoneId] as const,
 };
 
+/* ============================================================
+   TYPES
+============================================================ */
+
+export interface UploadMilestoneDeliverablesInput {
+  milestoneId: string;
+  projectId: string;
+  message: string;
+  files?: File[];
+  attachments?: DeliverableAttachment[];
+  onProgress?: (progress: number) => void;
+}
+/* ============================================================
+   HELPER
+   Refresh all project/milestone-related queries.
+============================================================ */
+
 function refreshProject(
-  queryClient: ReturnType<
-    typeof useQueryClient
-  >,
+  queryClient: ReturnType<typeof useQueryClient>,
   projectId?: string,
 ) {
+  // Refresh all milestone queries
   queryClient.invalidateQueries({
     queryKey: milestoneKeys.all,
   });
 
+  // Refresh user's projects
   queryClient.invalidateQueries({
     queryKey: projectKeys.mine(),
   });
 
+  // Refresh project-specific data
   if (projectId) {
     queryClient.invalidateQueries({
-      queryKey:
-        projectKeys.workroom(projectId),
+      queryKey: projectKeys.workroom(projectId),
     });
 
     queryClient.invalidateQueries({
-      queryKey:
-        projectKeys.detail(projectId),
+      queryKey: projectKeys.detail(projectId),
     });
   }
 }
+
+/* ============================================================
+   GET PROJECT MILESTONES
+============================================================ */
 
 export function useProjectMilestones(
   projectId?: string,
 ) {
   return useQuery({
-    queryKey:
-      milestoneKeys.project(
-        projectId ?? "",
-      ),
+    queryKey: milestoneKeys.project(
+      projectId ?? "",
+    ),
 
     queryFn: () =>
-      getProjectMilestones(
-        projectId!,
-      ),
+      getProjectMilestones(projectId!),
 
     enabled: Boolean(projectId),
   });
 }
 
+/* ============================================================
+   GET SINGLE MILESTONE
+============================================================ */
+
 export function useMilestone(
   id?: string,
 ) {
   return useQuery({
-    queryKey:
-      milestoneKeys.detail(id ?? ""),
+    queryKey: milestoneKeys.detail(
+      id ?? "",
+    ),
 
     queryFn: () =>
       getMilestone(id!),
@@ -97,9 +129,12 @@ export function useMilestone(
   });
 }
 
+/* ============================================================
+   CREATE MILESTONE
+============================================================ */
+
 export function useCreateMilestone() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -125,9 +160,12 @@ export function useCreateMilestone() {
   });
 }
 
+/* ============================================================
+   UPDATE MILESTONE
+============================================================ */
+
 export function useUpdateMilestone() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -140,7 +178,10 @@ export function useUpdateMilestone() {
         typeof updateMilestone
       >[1];
     }) =>
-      updateMilestone(id, data),
+      updateMilestone(
+        id,
+        data,
+      ),
 
     onSuccess: (_, variables) => {
       refreshProject(
@@ -151,9 +192,12 @@ export function useUpdateMilestone() {
   });
 }
 
+/* ============================================================
+   DELETE MILESTONE
+============================================================ */
+
 export function useDeleteMilestone() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -173,9 +217,12 @@ export function useDeleteMilestone() {
   });
 }
 
+/* ============================================================
+   START MILESTONE
+============================================================ */
+
 export function useStartMilestone() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -195,22 +242,28 @@ export function useStartMilestone() {
   });
 }
 
+/* ============================================================
+   SUBMIT MILESTONE
+   Freelancer submits milestone for review.
+============================================================ */
 export function useSubmitMilestone() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
-      id,
+      milestoneId,
       message,
+      files,
     }: {
-      id: string;
+      milestoneId: string;
       projectId: string;
       message: string;
+      files?: File[];
     }) =>
       submitMilestone(
-        id,
+        milestoneId,
         message,
+        files,
       ),
 
     onSuccess: (_, variables) => {
@@ -218,13 +271,24 @@ export function useSubmitMilestone() {
         queryClient,
         variables.projectId,
       );
+
+      queryClient.invalidateQueries({
+        queryKey:
+          milestoneKeys.submissions(
+            variables.milestoneId,
+          ),
+      });
     },
   });
 }
 
+/* ============================================================
+   REQUEST CHANGES
+   Client requests revisions from freelancer.
+============================================================ */
+
 export function useRequestChanges() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -245,13 +309,24 @@ export function useRequestChanges() {
         queryClient,
         variables.projectId,
       );
+
+      queryClient.invalidateQueries({
+        queryKey:
+          milestoneKeys.submissions(
+            variables.id,
+          ),
+      });
     },
   });
 }
 
+/* ============================================================
+   APPROVE MILESTONE
+   Client approves submitted milestone.
+============================================================ */
+
 export function useApproveMilestone() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -267,13 +342,23 @@ export function useApproveMilestone() {
         queryClient,
         variables.projectId,
       );
+
+      queryClient.invalidateQueries({
+        queryKey:
+          milestoneKeys.submissions(
+            variables.id,
+          ),
+      });
     },
   });
 }
 
+/* ============================================================
+   REJECT MILESTONE
+============================================================ */
+
 export function useRejectMilestone() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -289,13 +374,23 @@ export function useRejectMilestone() {
         queryClient,
         variables.projectId,
       );
+
+      queryClient.invalidateQueries({
+        queryKey:
+          milestoneKeys.submissions(
+            variables.id,
+          ),
+      });
     },
   });
 }
 
+/* ============================================================
+   INITIALIZE PAYMENT
+============================================================ */
+
 export function useInitializePayment() {
-  const queryClient =
-    useQueryClient();
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: ({
@@ -313,6 +408,73 @@ export function useInitializePayment() {
         queryClient,
         variables.projectId,
       );
+    },
+  });
+}
+
+/* ============================================================
+   GET MILESTONE SUBMISSIONS
+============================================================ */
+
+export function useMilestoneSubmissions(
+  milestoneId?: string,
+) {
+  return useQuery<MilestoneSubmission[]>({
+    queryKey: milestoneKeys.submissions(
+      milestoneId ?? "",
+    ),
+
+    queryFn: () =>
+      getMilestoneSubmissions(
+        milestoneId!,
+      ),
+
+    enabled: Boolean(milestoneId),
+  });
+}
+
+/* ============================================================
+   UPLOAD MILESTONE DELIVERABLES
+   Freelancer uploads completed work/files.
+============================================================ */
+
+export function useUploadMilestoneDeliverables() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      milestoneId,
+      message,
+      files,
+      attachments,
+    }: UploadMilestoneDeliverablesInput) => {
+      // Already-uploaded attachments: pass straight through
+      if (attachments?.length) {
+        return uploadMilestoneDeliverables(milestoneId, message, attachments);
+      }
+
+      // Raw File objects: use the service that accepts File[]
+      if (files?.length) {
+        return submitMilestone(milestoneId, message, files);
+      }
+
+      // Message only
+      return uploadMilestoneDeliverables(milestoneId, message, undefined);
+    },
+
+    onSuccess: (_, variables) => {
+      // Refresh submissions for this milestone
+      queryClient.invalidateQueries({
+        queryKey: milestoneKeys.submissions(variables.milestoneId),
+      });
+
+      // Refresh milestone data
+      queryClient.invalidateQueries({
+        queryKey: milestoneKeys.all,
+      });
+
+      // Refresh project/workroom
+      refreshProject(queryClient, variables.projectId);
     },
   });
 }

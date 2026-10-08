@@ -4,6 +4,7 @@ import type {
   Bank,
   SetupWithdrawalAccountRequest,
   Wallet,
+  WalletTransaction,
   Withdrawal,
   WithdrawalAccount,
 } from "@/types/wallet";
@@ -74,4 +75,22 @@ export async function requestWithdrawal(
 export async function listWithdrawals(): Promise<Withdrawal[]> {
   const response = await api.get<WithdrawalsResponse>("/wallets/withdrawals");
   return response.data.data.withdrawals;
+}
+
+interface WalletTransactionsResponse {
+  success: boolean;
+  data: {
+    transactions: WalletTransaction[];
+  };
+}
+
+export async function listWalletTransactions(): Promise<
+  WalletTransaction[]
+> {
+  const response =
+    await api.get<WalletTransactionsResponse>(
+      "/wallets/transactions",
+    );
+
+  return response.data.data.transactions;
 }

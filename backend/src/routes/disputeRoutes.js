@@ -1,6 +1,24 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
+
+const {
+  generateDisputeBrief,
+} = require("../controllers/disputeBriefController.js");
 
 const router = express.Router();
+
+// Every briefing costs money: limit each admin, not each IP address.
+const briefLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => String(req.user._id),
+  message: {
+    success: false,
+    message: "Too many AI briefings this hour. Please try again later.",
+  },
+});
 
 const protect = require("../middleware/authMiddleware.js");
 const authorize = require("../middleware/roleMiddleware.js");
@@ -40,6 +58,14 @@ router.patch(
   authorize("ADMIN"),
   validate(resolveDisputeSchema),
   resolveDispute
+);
+
+router.post(
+  "/disputes/:disputeId/brief",
+  protect,
+  authorize("ADMIN"),
+  briefLimiter,
+  generateDisputeBrief
 );
 
 router.get(

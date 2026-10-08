@@ -3,6 +3,7 @@ import { Calendar, Loader2, MapPin, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { PaymentPlan } from "@/components/jobs/payment-plan";
 import { ProposalForm } from "@/pages/freelancer/jobs/proposal-form";
 
 import { useAuth } from "@/features/auth/auth-context";
@@ -140,6 +141,13 @@ export default function JobDetailPage() {
             <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-600">
               {job.description}
             </p>
+
+            <PaymentPlan
+              plan={job.milestonePlan}
+              budget={job.budget}
+              currency={job.currency}
+              budgetType={job.budgetType}
+            />
 
             {job.skills.length > 0 && (
               <>

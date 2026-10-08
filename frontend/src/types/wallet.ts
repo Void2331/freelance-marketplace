@@ -52,3 +52,63 @@ export interface Withdrawal {
   createdAt: string;
   updatedAt: string;
 }
+export type WalletTransactionType =
+  | "MILESTONE_EARNING"
+  | "PLATFORM_FEE"
+  | "WITHDRAWAL"
+  | "REFUND"
+  | "REVERSAL"
+  | "ADJUSTMENT";
+
+export type WalletTransactionBalanceType =
+  | "PENDING"
+  | "AVAILABLE";
+
+export type WalletTransactionDirection =
+  | "CREDIT"
+  | "DEBIT";
+
+export interface WalletTransaction {
+  _id: string;
+  wallet: string;
+  user: string;
+
+  type: WalletTransactionType;
+  balanceType: WalletTransactionBalanceType;
+  direction: WalletTransactionDirection;
+
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+
+  project?: {
+    _id: string;
+    title?: string;
+  } | null;
+
+  milestone?: {
+    _id: string;
+    title?: string;
+    amount?: number;
+  } | null;
+
+  payment?: {
+    _id: string;
+    amount?: number;
+    currency?: string;
+    status?: string;
+  } | null;
+
+  withdrawal?: {
+    _id: string;
+    amount?: number;
+    status?: string;
+    reference?: string;
+  } | null;
+
+  reference: string;
+  description: string;
+
+  createdAt: string;
+  updatedAt: string;
+}

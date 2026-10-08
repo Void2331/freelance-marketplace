@@ -1,4 +1,5 @@
 import type { Job } from "./job";
+import type { TrustScore } from "./trust";
 
 export type ProposalStatus =
   | "PENDING"
@@ -14,6 +15,7 @@ export interface ProposalFreelancer {
   bio?: string;
   skills?: string[];
   hourlyRate?: number;
+  trust?: TrustScore;
 }
 
 export interface Proposal {

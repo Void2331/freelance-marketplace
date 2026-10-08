@@ -5,24 +5,21 @@ import { BrowserRouter } from "react-router-dom";
 
 import { queryClient } from "@/lib/query-client";
 import { AuthProvider } from "@/features/auth/auth-context";
+import { SearchContextProvider } from "@/features/search/searchContext";
+import SetPageContextProvider from "./features/page/setPageContextProvider";
 
 import App from "./App";
 import "./index.css";
-import { UseSearchContext } from "./features/search/searchContextProvider";
-import SetPageContextProvider from "./features/page/setPageContextProvider";
 
-
-createRoot(
-  document.getElementById("root")!,
-).render(
+createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
           <SetPageContextProvider>
-            <UseSearchContext>
+            <SearchContextProvider>
               <App />
-            </UseSearchContext>
+            </SearchContextProvider>
           </SetPageContextProvider>
         </AuthProvider>
       </BrowserRouter>

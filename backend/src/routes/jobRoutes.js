@@ -46,7 +46,6 @@ router.post(
   (?page/?limit/?category/?skill are schema-validated.)
 */
 router.get("/", validate(listJobsQuerySchema, "query"), getJobs);
-
 /*
   Client views their own posted jobs
   NOTE: registered before "/:id" so "my" isn't

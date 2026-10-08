@@ -2,6 +2,7 @@ const Proposal = require("../models/proposal");
 const Job = require("../models/job");
 const Project = require("../models/project");
 const AppError = require("../utils/AppError");
+const { getTrustScores } = require("./trustScore.js");
 
 /*
 ====================================================
@@ -108,7 +109,7 @@ const getJobProposals = async (
     )
     .sort({ createdAt: -1 });
 
-  return proposals;
+  return withFreelancerTrust(proposals);
 };
 
 
@@ -130,7 +131,7 @@ const getMyProposals = async (
     )
     .sort({ createdAt: -1 });
 
-  return proposals;
+  return withFreelancerTrust(proposals);
 };
 
 
@@ -168,7 +169,7 @@ const getClientProposals = async (
     )
     .populate(
       "job",
-      "title description budget budgetType deadline status client"
+      "title description budget budgetType deadline status client milestonePlan"
     )
     .sort({ createdAt: -1 });
 
@@ -195,7 +196,7 @@ const getProposalById = async (
     )
     .populate(
       "job",
-      "title description budget budgetType deadline status client"
+      "title description budget budgetType deadline status client milestonePlan"
     );
 
   if (!proposal) {
@@ -274,6 +275,42 @@ const rejectProposal = async (
 
 /*
 ====================================================
+ADD FREELANCER TRUST SCORE
+====================================================
+
+Adds `freelancer.trust` to every proposal so clients
+can compare bids by track record, not only by price.
+
+Uses one batched trust-score lookup regardless of
+the number of proposals.
+====================================================
+*/
+
+const withFreelancerTrust = async (proposals) => {
+  const trust = await getTrustScores(
+    proposals.map(
+      (proposal) => proposal.freelancer?._id
+    )
+  );
+
+  return proposals.map((proposal) => {
+    const plain = proposal.toObject();
+
+    if (
+      plain.freelancer &&
+      plain.freelancer._id
+    ) {
+      plain.freelancer.trust =
+        trust[String(plain.freelancer._id)];
+    }
+
+    return plain;
+  });
+};
+
+
+/*
+====================================================
 EXPORTS
 ====================================================
 */
@@ -285,4 +322,5 @@ module.exports = {
   getClientProposals,
   getProposalById,
   rejectProposal,
+  withFreelancerTrust,
 };

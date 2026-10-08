@@ -1,4 +1,5 @@
 import type { UserRole } from "./auth";
+import type { TrustScore } from "./trust";
 
 export interface User {
   _id: string;
@@ -6,6 +7,7 @@ export interface User {
   email: string;
   role: UserRole;
   isEmailVerified: boolean;
+  trust?: TrustScore;
 
   avatar?: string | null;
   bio?: string | null;

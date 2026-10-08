@@ -12,39 +12,28 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 
-import {
-  DashboardHeader,
-} from "@/components/dashboard/dashboard-header";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 
-import {
-  StatusBadge,
-} from "@/components/dashboard/status-badge";
+import { StatusBadge } from "@/components/dashboard/status-badge";
 
-import {
-  EmptyState,
-} from "@/components/dashboard/empty-state";
+import { EmptyState } from "@/components/dashboard/empty-state";
 
 import {
   useDeleteJob,
   useMyJobs,
 } from "@/hooks/use-jobs";
+
 import { getErrorMessage } from "@/lib/errors";
 
 export default function ClientJobsPage() {
-  const { data, isLoading } =
-    useMyJobs();
+  const { data: jobs = [], isLoading } = useMyJobs();
 
-    const jobs = data?.data || [];
-
-  const deleteMutation =
-    useDeleteJob();
+  const deleteMutation = useDeleteJob();
 
   const [deletingId, setDeletingId] =
     useState<string | null>(null);
 
-  async function handleDelete(
-    id: string,
-  ) {
+  async function handleDelete(id: string) {
     const confirmed = window.confirm(
       "Are you sure you want to delete this job?",
     );
@@ -58,12 +47,13 @@ export default function ClientJobsPage() {
 
       await deleteMutation.mutateAsync(id);
 
-      toast.success(
-        "Job deleted successfully",
-      );
+      toast.success("Job deleted successfully");
     } catch (error) {
       toast.error(
-        getErrorMessage(error, "Unable to delete job"),
+        getErrorMessage(
+          error,
+          "Unable to delete job",
+        ),
       );
     } finally {
       setDeletingId(null);
@@ -139,14 +129,10 @@ export default function ClientJobsPage() {
                       {job.budget.toLocaleString()}
                     </span>
 
-                    <span>
-                      {job.budgetType}
-                    </span>
+                    <span>{job.budgetType}</span>
 
                     {job.category && (
-                      <span>
-                        {job.category}
-                      </span>
+                      <span>{job.category}</span>
                     )}
                   </div>
                 </div>
@@ -187,9 +173,7 @@ export default function ClientJobsPage() {
                           deletingId === job._id
                         }
                         onClick={() =>
-                          handleDelete(
-                            job._id,
-                          )
+                          handleDelete(job._id)
                         }
                       >
                         <Trash2 className="mr-2 h-4 w-4" />

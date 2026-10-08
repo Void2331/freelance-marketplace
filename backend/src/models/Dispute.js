@@ -87,6 +87,27 @@ const disputeSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    /*
+      Latest AI case briefing for admins. "facts" are computed by
+      code; "content" is Claude's neutral summary. It never decides.
+    */
+    aiBrief: {
+      type: new mongoose.Schema(
+        {
+          generatedAt: Date,
+          generatedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+          },
+          model: String,
+          facts: mongoose.Schema.Types.Mixed,
+          content: mongoose.Schema.Types.Mixed,
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
   },
   {
     timestamps: true,
