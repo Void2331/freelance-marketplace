@@ -12,6 +12,7 @@ const checkProjectCompletion =
         status: {
           $nin: [
             "RELEASED",
+            "REFUNDED",
             "CANCELLED",
           ],
         },

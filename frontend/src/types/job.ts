@@ -8,6 +8,12 @@ export type BudgetType =
   | "FIXED"
   | "HOURLY";
 
+export interface MilestonePlanItem {
+  title: string;
+  description: string;
+  percentage: number;
+}
+
 export interface JobClient {
   _id: string;
   name: string;
@@ -16,11 +22,10 @@ export interface JobClient {
   bio?: string;
 }
 
-export interface data {
+export interface Job {
   _id: string;
-  client:
-    | "Client"
-    | JobClient[];
+
+  client: string | JobClient;
 
   title: string;
   description: string;
@@ -37,6 +42,8 @@ export interface data {
 
   deadline?: string | null;
 
+  milestonePlan?: MilestonePlanItem[];
+
   status: JobStatus;
 
   createdAt: string;
@@ -51,6 +58,7 @@ export interface CreateJobRequest {
   budget: number;
   budgetType?: BudgetType;
   deadline?: string;
+  milestonePlan?: MilestonePlanItem[];
 }
 
 export type UpdateJobRequest =

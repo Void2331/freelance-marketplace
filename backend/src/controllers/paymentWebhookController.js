@@ -68,6 +68,19 @@ const handlePaystackWebhook = async (req, res) => {
         message: "Transfer event processed",
       });
     }
+    if (eventName === "refund.processed") {
+  const refundedReference =
+    data.transaction_reference || data.transaction?.reference;
+
+  if (refundedReference) {
+    await Payment.updateOne(
+      { providerReference: refundedReference, status: "REFUND_PENDING" },
+      { $set: { status: "REFUNDED", refundedAt: new Date() } }
+    );
+  }
+
+  return res.status(200).json({ success: true, message: "Refund event processed" });
+}
 
     /*
      * 4. OTHERWISE WE ONLY PROCESS
@@ -157,10 +170,13 @@ const handlePaystackWebhook = async (req, res) => {
       Number(data.amount) !==
       Number(expectedAmount)
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Payment amount mismatch",
-      });
+     console.error(
+  `[PAYMENT MISMATCH] ref=${providerReference} expected=${expectedAmount} received=${data.amount}`
+);
+return res.status(200).json({
+  success: true,
+  message: "Payment amount mismatch - flagged for review",
+});
     }
 
     /*
@@ -171,10 +187,13 @@ const handlePaystackWebhook = async (req, res) => {
       String(data.currency).toUpperCase() !==
         String(payment.currency).toUpperCase()
     ) {
-      return res.status(400).json({
-        success: false,
-        message: "Payment currency mismatch",
-      });
+    console.error(
+  `[PAYMENT MISMATCH] ref=${providerReference} currency expected=${payment.currency} received=${data.currency}`
+);
+return res.status(200).json({
+  success: true,
+  message: "Payment currency mismatch - flagged for review",
+});
     }
 
     /*

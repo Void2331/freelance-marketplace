@@ -20,34 +20,22 @@ const initializePayment = asyncHandler(
       data: result
     });
   }
-);
+);const verifyPayment = asyncHandler(async (req, res) => {
+  const { reference } = req.body;
 
-const verifyPayment =
-  asyncHandler(
-    async (req, res) => {
-      const { reference } =
-        req.body;
+  const result = await paymentService.verifyPayment({
+    reference,
+    userId: req.user._id,
+  });
 
-      const {
-        payment,
-        transaction,
-      } =
-        await paymentService.verifyPayment(
-          reference
-        );
-
-      res.status(200).json({
-        success: true,
-        message:
-          "Payment verified successfully",
-        data: {
-          payment,
-          transaction,
-        },
-      });
-    }
-  );
-
+  res.status(200).json({
+    success: true,
+    message: result.awaitingSettlement
+      ? "Payment received, awaiting confirmation"
+      : "Payment verified successfully",
+    data: result,
+  });
+});
 /*
   NOTE: this file previously also exported
   releasePayment, a second "release a milestone's

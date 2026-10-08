@@ -5,6 +5,7 @@ interface SectionCardProps {
   description?: string;
   action?: ReactNode;
   children: ReactNode;
+  className?: string;
 }
 
 export function SectionCard({
@@ -12,26 +13,33 @@ export function SectionCard({
   description,
   action,
   children,
+  className = "",
 }: SectionCardProps) {
   return (
-    <section className="rounded-xl border bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b px-5 py-4">
-        <div>
-          <h2 className="font-semibold">
+    <section
+      className={`min-w-0 overflow-hidden rounded-xl border bg-white shadow-sm ${className}`}
+    >
+      <div className="flex flex-col gap-3 border-b px-4 py-4 sm:px-5 sm:py-5 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0">
+          <h2 className="break-words text-base font-semibold text-zinc-950">
             {title}
           </h2>
 
           {description && (
-            <p className="mt-0.5 text-xs text-zinc-500">
+            <p className="mt-1 text-sm leading-5 text-zinc-500">
               {description}
             </p>
           )}
         </div>
 
-        {action}
+        {action && (
+          <div className="shrink-0">
+            {action}
+          </div>
+        )}
       </div>
 
-      <div className="p-5">
+      <div className="min-w-0 p-4 sm:p-5">
         {children}
       </div>
     </section>

@@ -10,6 +10,10 @@ export interface AuthUser {
   role: UserRole;
   isEmailVerified: boolean;
   avatar?: string | null;
+  bio?: string;
+  location?: string;
+  skills?: string[];
+ hourlyRate?: number;
 }
 
 export interface LoginRequest {

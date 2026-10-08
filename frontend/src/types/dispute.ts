@@ -42,6 +42,59 @@ export interface DisputeParty {
   role?: string;
 }
 
+export interface DisputeBriefFacts {
+  milestone: {
+    title: string;
+    description: string;
+    amount: number;
+    currency: string;
+    status: string;
+    dueDate: string | null;
+  };
+  payment: { status: string; amount: number } | null;
+  dispute: {
+    openedBy: "CLIENT" | "FREELANCER" | "OTHER";
+    against: "CLIENT" | "FREELANCER";
+    reason: string;
+    openedAt: string | null;
+    daysOpen: number;
+  };
+  delivery: {
+    submissionCount: number;
+    lastSubmittedAt: string | null;
+    submittedLate: boolean | null;
+    lateByDays: number | null;
+    revisionRequests: number;
+  };
+  communication: {
+    clientMessages: number;
+    freelancerMessages: number;
+    otherPartyRepliedAfterDispute: boolean;
+  };
+  evidence: {
+    count: number;
+    items: { name: string; host: string }[];
+  };
+}
+
+export interface DisputeBriefContent {
+  summary: string;
+  clientPosition: string;
+  freelancerPosition: string;
+  agreedFacts: string[];
+  disputedPoints: string[];
+  evidenceNotes: string[];
+  questionsForAdmin: string[];
+  cautions: string[];
+}
+
+export interface DisputeBrief {
+  generatedAt: string;
+  model?: string;
+  facts: DisputeBriefFacts;
+  content: DisputeBriefContent;
+}
+
 export interface Dispute {
   _id: string;
   project:
@@ -70,6 +123,7 @@ export interface Dispute {
   resolution?: string;
   resolvedBy?: string | { _id: string; name: string };
   resolvedAt?: string | null;
+  aiBrief?: DisputeBrief | null;
   createdAt: string;
   updatedAt: string;
 }

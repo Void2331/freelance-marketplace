@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 
 import {
+  generateDisputeBrief,
   getProjectDisputes,
   listDisputes,
   openDispute,
@@ -63,16 +64,31 @@ export function useResolveDispute() {
       disputeId,
       decision,
       resolution,
+      freelancerPercent,
     }: {
       disputeId: string;
       decision: DisputeDecision;
-      resolution: string;
-    }) => resolveDispute(disputeId, decision, resolution),
+        resolution: string;
+        freelancerPercent?: number;
+      }) => resolveDispute(disputeId, decision, resolution, freelancerPercent),
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: disputeKeys.all });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["milestones"] });
+    },
+  });
+}
+
+export function useGenerateDisputeBrief() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (disputeId: string) => generateDisputeBrief(disputeId),
+
+    onSuccess: () => {
+      // the saved briefing comes back with the dispute list
+      queryClient.invalidateQueries({ queryKey: disputeKeys.all });
     },
   });
 }

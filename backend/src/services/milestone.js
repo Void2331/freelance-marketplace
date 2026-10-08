@@ -154,7 +154,10 @@ const getProjectMilestones = async (
     await Milestone.find({
       project: projectId
     }).sort({
-      dueDate: 1
+      // Milestones without a due date (e.g. from a payment plan)
+      // then keep the order they were planned in.
+      dueDate: 1,
+      order: 1
     });
 
   return milestones;

@@ -2,6 +2,22 @@ const { z } = require("zod");
 
 const { optionalInt } = require("./queryHelpers.js");
 
+const milestonePlanSchema = z
+  .array(
+    z.object({
+      title: z.string().trim().min(1, "Milestone title is required").max(100),
+      description: z.string().trim().max(400).optional().default(""),
+      percentage: z.coerce.number().int().min(1).max(100),
+    })
+  )
+  .max(10, "A payment plan can have at most 10 milestones")
+  .refine(
+    (plan) =>
+      plan.length === 0 ||
+      plan.reduce((sum, item) => sum + item.percentage, 0) === 100,
+    { message: "Milestone percentages must add up to 100" }
+  );
+
 const createJobSchema = z.object({
   title: z
     .string()
@@ -29,6 +45,8 @@ const createJobSchema = z.object({
     .string()
     .datetime("Deadline must be a valid date")
     .optional(),
+
+  milestonePlan: milestonePlanSchema.optional(),
 });
 
 const updateJobSchema = createJobSchema.partial();

@@ -1,0 +1,1939 @@
+openapi: 3.0.3
+
+info:
+  title: Freelance Marketplace API
+  description: |
+    REST API for the Freelance Marketplace application.
+
+    The platform connects clients with freelancers. Clients can post jobs,
+    freelancers can submit proposals, projects move through milestones,
+    payments are processed through Paystack, and administrators manage
+    disputes, payments, withdrawals, and platform activity.
+
+    ## Authentication
+
+    Most protected endpoints require a JWT access token.
+
+    Use the **Authorize** button in Swagger UI and enter:
+
+    `Bearer YOUR_ACCESS_TOKEN`
+
+    ## Roles
+
+    The platform supports three roles:
+
+    - `ADMIN`
+    - `CLIENT`
+    - `FREELANCER`
+
+    Some endpoints are restricted to specific roles.
+
+  version: 1.0.0
+  contact:
+    name: Freelance Marketplace API
+
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+
+tags:
+  - name: Authentication
+    description: Registration, login, email verification and password recovery
+  - name: Users
+    description: User profiles and freelancer discovery
+  - name: Jobs
+    description: Job creation, browsing and management
+  - name: Proposals
+    description: Freelancer proposals
+  - name: Projects
+    description: Project management
+  - name: Milestones
+    description: Project milestones
+  - name: Workroom
+    description: Project workroom and milestone submissions
+  - name: Payments
+    description: Paystack payments and receipts
+  - name: Wallet
+    description: Freelancer wallet and transactions
+  - name: Withdrawals
+    description: Freelancer bank accounts and withdrawals
+  - name: Contracts
+    description: Freelancer contracts
+  - name: Messages
+    description: Project messaging
+  - name: Reviews
+    description: Project reviews
+  - name: Disputes
+    description: Milestone disputes
+  - name: Notifications
+    description: User notifications
+  - name: Uploads
+    description: File and avatar uploads
+  - name: AI
+    description: AI-powered marketplace functionality
+  - name: Admin
+    description: Administrator operations
+  - name: Webhooks
+    description: External payment webhooks
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # ============================================================
+  # ROOT
+  # ============================================================
+
+  /:
+    get:
+      tags:
+        - Authentication
+      summary: API health check
+      security: []
+      responses:
+        "200":
+          description: API is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+              example:
+                success: true
+                message: Freelance Marketplace API is running
+
+  # ============================================================
+  # AUTHENTICATION
+  # ============================================================
+
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: |
+        Creates a CLIENT or FREELANCER account.
+
+        Public ADMIN registration is not permitted by the application.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Email already exists
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/auth/verify-email:
+    get:
+      tags:
+        - Authentication
+      summary: Verify email address
+      security: []
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Email successfully verified
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/auth/resend-verification:
+    post:
+      tags:
+        - Authentication
+      summary: Resend email verification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Verification email processed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/auth/forgot-password:
+    post:
+      tags:
+        - Authentication
+      summary: Request password reset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailRequest"
+      responses:
+        "200":
+          description: Password reset request processed
+
+  /api/auth/reset-password:
+    post:
+      tags:
+        - Authentication
+      summary: Reset password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetPasswordRequest"
+      responses:
+        "200":
+          description: Password reset successful
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ============================================================
+  # USERS
+  # ============================================================
+
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: Browse freelancers
+      parameters:
+        - name: skill
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: minRating
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            maximum: 5
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Freelancer list
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /api/users/me:
+    patch:
+      tags:
+        - Users
+      summary: Update current profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /api/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: User profile
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /api/users/{id}/reviews:
+    get:
+      tags:
+        - Users
+      summary: Get user's reviews
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: User reviews
+
+  /api/users/admin/all:
+    get:
+      tags:
+        - Users
+      summary: List all users
+      description: ADMIN only
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum:
+              - CLIENT
+              - FREELANCER
+              - ADMIN
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User list
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/users/{id}/status:
+    patch:
+      tags:
+        - Users
+      summary: Update user active status
+      description: ADMIN only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - isActive
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        "200":
+          description: User status updated
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  # ============================================================
+  # JOBS
+  # ============================================================
+
+  /api/jobs:
+    post:
+      tags:
+        - Jobs
+      summary: Create a job
+      description: CLIENT only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRequest"
+      responses:
+        "201":
+          description: Job created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    get:
+      tags:
+        - Jobs
+      summary: Browse jobs
+      security: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: skill
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Jobs list
+
+  /api/jobs/my:
+    get:
+      tags:
+        - Jobs
+      summary: Get my jobs
+      description: CLIENT only
+      responses:
+        "200":
+          description: Client jobs
+
+  /api/jobs/admin/all:
+    get:
+      tags:
+        - Jobs
+      summary: Get all jobs
+      description: ADMIN only
+      responses:
+        "200":
+          description: All jobs
+
+  /api/jobs/{id}:
+    get:
+      tags:
+        - Jobs
+      summary: Get job by ID
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Job details
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    patch:
+      tags:
+        - Jobs
+      summary: Update job
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateJobRequest"
+      responses:
+        "200":
+          description: Job updated
+
+    delete:
+      tags:
+        - Jobs
+      summary: Delete job
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Job deleted
+
+  /api/jobs/admin/{id}:
+    delete:
+      tags:
+        - Jobs
+      summary: Delete job as administrator
+      description: ADMIN only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Job deleted
+
+  # ============================================================
+  # PROPOSALS
+  # ============================================================
+
+  /api/jobs/{jobId}/proposals:
+    post:
+      tags:
+        - Proposals
+      summary: Submit proposal
+      description: FREELANCER only
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProposalRequest"
+      responses:
+        "201":
+          description: Proposal submitted
+
+    get:
+      tags:
+        - Proposals
+      summary: Get proposals for a job
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Job proposals
+
+  /api/proposals/my:
+    get:
+      tags:
+        - Proposals
+      summary: Get my proposals
+      description: FREELANCER only
+      responses:
+        "200":
+          description: Freelancer proposals
+
+  /api/proposals/client:
+    get:
+      tags:
+        - Proposals
+      summary: Get client proposals
+      description: CLIENT only
+      responses:
+        "200":
+          description: Client proposals
+
+  /api/proposals/{id}:
+    get:
+      tags:
+        - Proposals
+      summary: Get proposal by ID
+      description: CLIENT or FREELANCER
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Proposal details
+
+  /api/proposals/{id}/accept:
+    patch:
+      tags:
+        - Proposals
+      summary: Accept proposal
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Proposal accepted and project created
+
+  /api/proposals/{id}/reject:
+    patch:
+      tags:
+        - Proposals
+      summary: Reject proposal
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Proposal rejected
+
+  # ============================================================
+  # PROJECTS
+  # ============================================================
+
+  /api/projects:
+    get:
+      tags:
+        - Projects
+      summary: Get my projects
+      description: ADMIN, CLIENT or FREELANCER
+      responses:
+        "200":
+          description: Project list
+
+  /api/projects/{id}:
+    get:
+      tags:
+        - Projects
+      summary: Get project by ID
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Project details
+
+    patch:
+      tags:
+        - Projects
+      summary: Update project
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProjectRequest"
+      responses:
+        "200":
+          description: Project updated
+
+  /api/projects/{id}/cancel:
+    patch:
+      tags:
+        - Projects
+      summary: Cancel project
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Project cancelled
+
+  /api/projects/{id}/complete:
+    patch:
+      tags:
+        - Projects
+      summary: Complete project
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Project completed
+
+  /api/admin/projects:
+    get:
+      tags:
+        - Projects
+      summary: Get all projects
+      description: ADMIN only
+      responses:
+        "200":
+          description: All projects
+
+  # ============================================================
+  # MILESTONES
+  # ============================================================
+
+  /api/projects/{projectId}/milestones:
+    post:
+      tags:
+        - Milestones
+      summary: Create milestone
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMilestoneRequest"
+      responses:
+        "201":
+          description: Milestone created
+
+    get:
+      tags:
+        - Milestones
+      summary: Get project milestones
+      description: CLIENT or FREELANCER
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Milestones
+
+  /api/milestones/{id}:
+    get:
+      tags:
+        - Milestones
+      summary: Get milestone
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Milestone
+
+    patch:
+      tags:
+        - Milestones
+      summary: Update milestone
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMilestoneRequest"
+      responses:
+        "200":
+          description: Milestone updated
+
+    delete:
+      tags:
+        - Milestones
+      summary: Delete milestone
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Milestone deleted
+
+  /api/milestones/{id}/start:
+    patch:
+      tags:
+        - Milestones
+      summary: Start milestone
+      description: FREELANCER only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Milestone started
+
+  /api/milestones/{id}/reject:
+    patch:
+      tags:
+        - Milestones
+      summary: Reject milestone
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Milestone rejected
+
+  # ============================================================
+  # WORKROOM
+  # ============================================================
+
+  /api/projects/{projectId}/workroom:
+    get:
+      tags:
+        - Workroom
+      summary: Get project workroom
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Workroom data
+
+  /api/milestones/{milestoneId}/submit:
+    post:
+      tags:
+        - Workroom
+      summary: Submit milestone deliverables
+      description: |
+        Submit a milestone with a message and optional attachments.
+
+        This endpoint uses multipart/form-data.
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 5000
+                attachments:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "201":
+          description: Milestone submission created
+
+  /api/milestones/{milestoneId}/request-changes:
+    post:
+      tags:
+        - Workroom
+      summary: Request milestone changes
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestChangesRequest"
+      responses:
+        "200":
+          description: Changes requested
+
+  /api/milestones/{milestoneId}/approve:
+    post:
+      tags:
+        - Workroom
+      summary: Approve milestone
+      description: CLIENT only
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      responses:
+        "200":
+          description: Milestone approved
+
+  /api/milestones/{milestoneId}/deliverables/upload:
+    post:
+      tags:
+        - Workroom
+      summary: Upload milestone deliverables
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        "200":
+          description: Files uploaded
+
+  /api/milestones/{milestoneId}/submissions:
+    get:
+      tags:
+        - Workroom
+      summary: Get milestone submission history
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      responses:
+        "200":
+          description: Submission history
+
+  # ============================================================
+  # PAYMENTS
+  # ============================================================
+
+  /api/payments/initialize:
+    post:
+      tags:
+        - Payments
+      summary: Initialize milestone payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitializePaymentRequest"
+      responses:
+        "200":
+          description: Payment initialized
+
+  /api/payments/verify:
+    post:
+      tags:
+        - Payments
+      summary: Verify Paystack payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyPaymentRequest"
+      responses:
+        "200":
+          description: Payment verified
+
+  /api/payments/receipt/milestone/{milestoneId}:
+    get:
+      tags:
+        - Payments
+      summary: Download milestone payment receipt
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      responses:
+        "200":
+          description: PDF receipt
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /api/payments/receipt/{paymentId}:
+    get:
+      tags:
+        - Payments
+      summary: Download payment receipt
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PDF receipt
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /api/payments/earnings-statement:
+    get:
+      tags:
+        - Payments
+      summary: Download earnings statement
+      description: FREELANCER only
+      responses:
+        "200":
+          description: PDF earnings statement
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # ============================================================
+  # PAYSTACK WEBHOOK
+  # ============================================================
+
+  /api/webhooks/paystack:
+    post:
+      tags:
+        - Webhooks
+      summary: Paystack webhook
+      description: |
+        Receives payment events from Paystack.
+
+        This endpoint is public and must not use JWT authentication.
+        The webhook signature should be validated by the backend.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Webhook processed
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  # ============================================================
+  # WALLET
+  # ============================================================
+
+  /api/wallets:
+    get:
+      tags:
+        - Wallet
+      summary: Get wallet
+      responses:
+        "200":
+          description: Wallet information
+
+  /api/wallets/transactions:
+    get:
+      tags:
+        - Wallet
+      summary: Get wallet transactions
+      description: FREELANCER only
+      responses:
+        "200":
+          description: Wallet transactions
+
+  # ============================================================
+  # WITHDRAWALS
+  # ============================================================
+
+  /api/wallets/banks:
+    get:
+      tags:
+        - Withdrawals
+      summary: Get supported banks
+      responses:
+        "200":
+          description: Supported Nigerian banks
+
+  /api/wallets/withdrawal-account:
+    get:
+      tags:
+        - Withdrawals
+      summary: Get withdrawal account
+      description: FREELANCER only
+      responses:
+        "200":
+          description: Withdrawal account
+
+    post:
+      tags:
+        - Withdrawals
+      summary: Setup withdrawal account
+      description: FREELANCER only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawalAccountRequest"
+      responses:
+        "200":
+          description: Withdrawal account saved
+
+  /api/wallets/withdraw:
+    post:
+      tags:
+        - Withdrawals
+      summary: Request withdrawal
+      description: FREELANCER only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WithdrawalRequest"
+      responses:
+        "201":
+          description: Withdrawal requested
+
+  /api/wallets/withdrawals:
+    get:
+      tags:
+        - Withdrawals
+      summary: Get my withdrawals
+      description: FREELANCER only
+      responses:
+        "200":
+          description: Withdrawal history
+
+  # ============================================================
+  # CONTRACTS
+  # ============================================================
+
+  /api/contracts:
+    get:
+      tags:
+        - Contracts
+      summary: Get my contracts
+      description: FREELANCER only
+      responses:
+        "200":
+          description: Contracts
+
+  /api/contracts/{id}:
+    get:
+      tags:
+        - Contracts
+      summary: Get contract
+      description: FREELANCER only
+      parameters:
+        - $ref: "#/components/parameters/ObjectId"
+      responses:
+        "200":
+          description: Contract
+
+  # ============================================================
+  # MESSAGES
+  # ============================================================
+
+  /api/projects/{projectId}/messages:
+    post:
+      tags:
+        - Messages
+      summary: Send project message
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendMessageRequest"
+      responses:
+        "201":
+          description: Message sent
+
+    get:
+      tags:
+        - Messages
+      summary: Get project messages
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project messages
+
+  /api/projects/{projectId}/messages/read:
+    patch:
+      tags:
+        - Messages
+      summary: Mark project messages as read
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Messages marked as read
+
+  /api/messages/unread-count:
+    get:
+      tags:
+        - Messages
+      summary: Get unread message count
+      responses:
+        "200":
+          description: Unread count
+
+  /api/messages/conversations:
+    get:
+      tags:
+        - Messages
+      summary: Get conversations
+      responses:
+        "200":
+          description: Conversations
+
+  # ============================================================
+  # REVIEWS
+  # ============================================================
+
+  /api/projects/{projectId}/review:
+    post:
+      tags:
+        - Reviews
+      summary: Create project review
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReviewRequest"
+      responses:
+        "201":
+          description: Review created
+
+  /api/projects/{projectId}/reviews:
+    get:
+      tags:
+        - Reviews
+      summary: Get project reviews
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project reviews
+
+  # ============================================================
+  # DISPUTES
+  # ============================================================
+
+  /api/milestones/{milestoneId}/dispute:
+    post:
+      tags:
+        - Disputes
+      summary: Open milestone dispute
+      parameters:
+        - $ref: "#/components/parameters/MilestoneId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenDisputeRequest"
+      responses:
+        "201":
+          description: Dispute opened
+
+  /api/disputes:
+    get:
+      tags:
+        - Disputes
+      summary: List disputes
+      description: ADMIN only
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - OPEN
+              - UNDER_REVIEW
+              - AWAITING_RESPONSE
+              - RESOLVED_CLIENT
+              - RESOLVED_FREELANCER
+              - PARTIAL_RESOLUTION
+              - CLOSED
+      responses:
+        "200":
+          description: Dispute list
+
+  /api/disputes/{disputeId}/resolve:
+    patch:
+      tags:
+        - Disputes
+      summary: Resolve dispute
+      description: ADMIN only
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveDisputeRequest"
+      responses:
+        "200":
+          description: Dispute resolved
+
+  /api/disputes/{disputeId}/brief:
+    post:
+      tags:
+        - Disputes
+      summary: Generate dispute brief
+      description: ADMIN only
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dispute brief generated
+
+  /api/projects/{projectId}/disputes:
+    get:
+      tags:
+        - Disputes
+      summary: Get project disputes
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project disputes
+
+  # ============================================================
+  # NOTIFICATIONS
+  # ============================================================
+
+  /api/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get notifications
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+      responses:
+        "200":
+          description: Notifications
+
+  # ============================================================
+  # UPLOADS
+  # ============================================================
+
+  /api/uploads/avatar:
+    post:
+      tags:
+        - Uploads
+      summary: Upload profile avatar
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: Avatar uploaded
+
+  # ============================================================
+  # AI
+  # ============================================================
+
+  /api/ai/milestone-plan:
+    post:
+      tags:
+        - AI
+      summary: Generate AI milestone plan
+      description: CLIENT only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MilestonePlanRequest"
+      responses:
+        "200":
+          description: AI-generated milestone plan
+
+  # ============================================================
+  # ADMIN
+  # ============================================================
+
+  /api/admin/stats:
+    get:
+      tags:
+        - Admin
+      summary: Get platform statistics
+      description: ADMIN only
+      responses:
+        "200":
+          description: Platform statistics
+
+  /api/admin/payments:
+    get:
+      tags:
+        - Admin
+      summary: Get platform payments
+      description: ADMIN only
+      responses:
+        "200":
+          description: Payment records
+
+  /api/admin/withdrawals:
+    get:
+      tags:
+        - Admin
+      summary: Get platform withdrawals
+      description: ADMIN only
+      responses:
+        "200":
+          description: Withdrawal records
+
+  /api/admin/payments/{paymentId}/retry-refund:
+    post:
+      tags:
+        - Admin
+      summary: Retry payment refund
+      description: ADMIN only
+      parameters:
+        - name: paymentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Refund retry initiated
+
+components:
+
+  # ============================================================
+  # SECURITY
+  # ============================================================
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your JWT access token.
+
+  # ============================================================
+  # PARAMETERS
+  # ============================================================
+
+  parameters:
+
+    ObjectId:
+      name: id
+      in: path
+      required: true
+      description: MongoDB ObjectId
+      schema:
+        type: string
+        example: 65f1a1b2c3d4e5f678901234
+
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      description: MongoDB Job ObjectId
+      schema:
+        type: string
+        example: 65f1a1b2c3d4e5f678901234
+
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      description: MongoDB Project ObjectId
+      schema:
+        type: string
+        example: 65f1a1b2c3d4e5f678901234
+
+    MilestoneId:
+      name: milestoneId
+      in: path
+      required: true
+      description: MongoDB Milestone ObjectId
+      schema:
+        type: string
+        example: 65f1a1b2c3d4e5f678901234
+
+  # ============================================================
+  # RESPONSES
+  # ============================================================
+
+  responses:
+
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Unauthorized:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    Forbidden:
+      description: User does not have permission
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  # ============================================================
+  # SCHEMAS
+  # ============================================================
+
+  schemas:
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation successful
+        data:
+          type: object
+          nullable: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Something went wrong
+
+    RegisterRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: John Doe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          example: Password123
+        role:
+          type: string
+          enum:
+            - CLIENT
+            - FREELANCER
+          default: FREELANCER
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        password:
+          type: string
+          format: password
+          example: Password123
+
+    EmailRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: john@example.com
+
+    ResetPasswordRequest:
+      type: object
+      required:
+        - token
+        - password
+      properties:
+        token:
+          type: string
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+        avatar:
+          type: string
+          maxLength: 1000
+        bio:
+          type: string
+          maxLength: 1000
+        location:
+          type: string
+          maxLength: 150
+        skills:
+          type: array
+          items:
+            type: string
+        hourlyRate:
+          type: number
+          minimum: 0
+
+    CreateJobRequest:
+      type: object
+      required:
+        - title
+        - description
+        - budget
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 150
+        description:
+          type: string
+          minLength: 20
+          maxLength: 5000
+        category:
+          type: string
+          maxLength: 100
+        skills:
+          type: array
+          items:
+            type: string
+        budget:
+          type: number
+          exclusiveMinimum: 0
+        budgetType:
+          type: string
+          enum:
+            - FIXED
+            - HOURLY
+        deadline:
+          type: string
+          format: date-time
+        milestonePlan:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/MilestonePlanItem"
+
+    UpdateJobRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreateJobRequest"
+
+    MilestonePlanItem:
+      type: object
+      required:
+        - title
+        - percentage
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 400
+        percentage:
+          type: integer
+          minimum: 1
+          maximum: 100
+
+    CreateProposalRequest:
+      type: object
+      required:
+        - coverLetter
+        - bidAmount
+        - estimatedDuration
+      properties:
+        coverLetter:
+          type: string
+          minLength: 20
+          maxLength: 3000
+        bidAmount:
+          type: number
+          exclusiveMinimum: 0
+        estimatedDuration:
+          type: integer
+          minimum: 1
+
+    UpdateProjectRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 150
+        description:
+          type: string
+          minLength: 10
+          maxLength: 5000
+
+    CreateMilestoneRequest:
+      type: object
+      required:
+        - title
+        - description
+        - amount
+        - dueDate
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 150
+        description:
+          type: string
+          minLength: 10
+          maxLength: 2000
+        amount:
+          type: number
+          exclusiveMinimum: 0
+        dueDate:
+          type: string
+          format: date-time
+
+    UpdateMilestoneRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 3
+          maxLength: 150
+        description:
+          type: string
+          minLength: 10
+          maxLength: 2000
+        amount:
+          type: number
+          exclusiveMinimum: 0
+        dueDate:
+          type: string
+          format: date-time
+
+    RequestChangesRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+
+    InitializePaymentRequest:
+      type: object
+      required:
+        - milestoneId
+      properties:
+        milestoneId:
+          type: string
+          example: 65f1a1b2c3d4e5f678901234
+
+    VerifyPaymentRequest:
+      type: object
+      required:
+        - reference
+      properties:
+        reference:
+          type: string
+          example: freelance-123456789
+
+    WithdrawalAccountRequest:
+      type: object
+      required:
+        - bankCode
+        - bankName
+        - accountNumber
+      properties:
+        bankCode:
+          type: string
+          example: "058"
+        bankName:
+          type: string
+          example: GTBank
+        accountNumber:
+          type: string
+          minLength: 10
+          maxLength: 10
+          pattern: "^[0-9]+$"
+          example: "0123456789"
+
+    WithdrawalRequest:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          exclusiveMinimum: 0
+          example: 50000
+
+    SendMessageRequest:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Attachment"
+
+    Attachment:
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+        mimeType:
+          type: string
+        size:
+          type: number
+
+    CreateReviewRequest:
+      type: object
+      required:
+        - rating
+      properties:
+        rating:
+          type: number
+          minimum: 1
+          maximum: 5
+        communicationRating:
+          type: number
+          nullable: true
+          minimum: 1
+          maximum: 5
+        qualityRating:
+          type: number
+          nullable: true
+          minimum: 1
+          maximum: 5
+        deadlineRating:
+          type: number
+          nullable: true
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          nullable: true
+          maxLength: 2000
+
+    OpenDisputeRequest:
+      type: object
+      required:
+        - reason
+        - description
+      properties:
+        reason:
+          type: string
+          enum:
+            - NON_PAYMENT
+            - POOR_QUALITY
+            - SCOPE_DISAGREEMENT
+            - MISSED_DEADLINE
+            - NON_DELIVERY
+            - FRAUD
+            - OTHER
+        description:
+          type: string
+          minLength: 1
+          maxLength: 5000
+        evidence:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              url:
+                type: string
+              mimeType:
+                type: string
+
+    ResolveDisputeRequest:
+      type: object
+      required:
+        - decision
+        - resolution
+      properties:
+        decision:
+          type: string
+          enum:
+            - RESOLVED_CLIENT
+            - RESOLVED_FREELANCER
+            - PARTIAL_RESOLUTION
+        resolution:
+          type: string
+          minLength: 1
+
+    MilestonePlanRequest:
+      type: object
+      required:
+        - title
+        - description
+        - budget
+      properties:
+        title:
+          type: string
+          minLength: 5
+          maxLength: 150
+        description:
+          type: string
+          minLength: 20
+          maxLength: 5000
+        budget:
+          type: number
+          exclusiveMinimum: 0
+        currency:
+          type: string
+          maxLength: 10
+        deadline:
+          type: string
+          maxLength: 40

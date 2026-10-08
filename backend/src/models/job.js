@@ -60,6 +60,23 @@ const jobSchema = new mongoose.Schema(
       default: null,
     },
 
+    /*
+      Optional payment plan the client drafted (often with the
+      AI planner). Shown to freelancers so they can bid knowing
+      how the work will be paid. Percentages total 100.
+    */
+    milestonePlan: {
+      type: [
+        {
+          _id: false,
+          title: { type: String, trim: true, maxlength: 100, required: true },
+          description: { type: String, trim: true, maxlength: 400, default: "" },
+          percentage: { type: Number, min: 1, max: 100, required: true },
+        },
+      ],
+      default: [],
+    },
+
     status: {
       type: String,
       enum: ["OPEN", "IN_PROGRESS", "COMPLETED", "CANCELLED"],

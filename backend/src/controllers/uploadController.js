@@ -1,14 +1,20 @@
 const asyncHandler = require("../utils/asyncHandler.js");
 const AppError = require("../utils/AppError.js");
 
+const uploadToCloudinary = require("../utils/cloudinaryUpload.js");
+
 /*
 ====================================================
 UPLOAD AVATAR
-Requires uploadMiddleware (multer) to already have
-run, populating req.file. Only returns a URL —
-saving it to the user's profile happens through the
-existing PATCH /users/me, so this stays a simple
-"upload a file, get a URL back" endpoint.
+====================================================
+
+Multer stores the uploaded image in memory.
+
+Cloudinary then uploads the buffer and returns the
+permanent secure URL.
+
+The frontend can use the returned URL when updating
+the user's profile.
 ====================================================
 */
 const uploadAvatar = asyncHandler(async (req, res) => {
@@ -16,14 +22,31 @@ const uploadAvatar = asyncHandler(async (req, res) => {
     throw new AppError("No file was uploaded", 400);
   }
 
-  const url = `${req.protocol}://${req.get("host")}/uploads/avatars/${
-    req.file.filename
-  }`;
+  /*
+  ================================================
+  Upload image to Cloudinary
+  ================================================
+  */
+  const result = await uploadToCloudinary(
+    req.file.buffer,
+    {
+      folder: "freelance-marketplace/avatars",
+      resource_type: "image",
+    }
+  );
 
+  /*
+  ================================================
+  Return Cloudinary URL
+  ================================================
+  */
   res.status(200).json({
     success: true,
-    message: "Avatar uploaded",
-    data: { url },
+    message: "Avatar uploaded successfully",
+    data: {
+      url: result.secure_url,
+      publicId: result.public_id,
+    },
   });
 });
 

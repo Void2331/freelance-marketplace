@@ -27,6 +27,8 @@ interface AcceptProposalResponse {
     projectId: string;
     contractId: string;
     milestoneId: string;
+    milestoneIds?: string[];
+    milestoneCount?: number;
     paymentId: string;
     paymentReference: string;
     status: string;

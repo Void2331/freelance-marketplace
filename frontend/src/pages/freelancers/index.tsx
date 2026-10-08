@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Star, UserRound } from "lucide-react";
 
-
+import { TrustBadge } from "@/components/trust/trust-badge";
 import { useFreelancers } from "@/hooks/use-users";
 
 export default function FreelancerDirectory() {
@@ -93,6 +93,10 @@ export default function FreelancerDirectory() {
                       </p>
                     )}
                   </div>
+                </div>
+
+                <div className="mt-3">
+                  <TrustBadge trust={freelancer.trust} />
                 </div>
 
                 {freelancer.bio && (

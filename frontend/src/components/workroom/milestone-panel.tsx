@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MilestoneCard } from "@/components/projects/milestone-card";
+import { ReceiptButton } from "@/components/documents/receipt-button";
 
 import {
   useApproveMilestone,
@@ -14,8 +15,12 @@ import {
   useRejectMilestone,
   useRequestChanges,
   useStartMilestone,
-  useSubmitMilestone,
 } from "@/hooks/use-milestones";
+
+import {
+  DeliverableSubmission,
+  SubmissionHistory,
+} from "@/components/workroom/deliverable-submission";
 
 import { useOpenDispute } from "@/hooks/use-disputes";
 
@@ -49,6 +54,7 @@ const DISPUTABLE_STATUSES = [
 
 function errorMessage(error: unknown, fallback: string) {
   const message = (error as any)?.response?.data?.message;
+
   return typeof message === "string" ? message : fallback;
 }
 
@@ -57,21 +63,15 @@ export function MilestonePanel({
   projectId,
   role,
 }: MilestonePanelProps) {
-  const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [showChangesForm, setShowChangesForm] = useState(false);
   const [showDisputeForm, setShowDisputeForm] = useState(false);
 
   const initializePayment = useInitializePayment();
   const startMilestone = useStartMilestone();
-  const submitMilestone = useSubmitMilestone();
   const requestChanges = useRequestChanges();
   const approveMilestone = useApproveMilestone();
   const rejectMilestone = useRejectMilestone();
   const openDispute = useOpenDispute();
-
-  const submitForm = useForm<SubmissionFormValues>({
-    resolver: zodResolver(submissionSchema),
-  });
 
   const changesForm = useForm<SubmissionFormValues>({
     resolver: zodResolver(submissionSchema),
@@ -107,23 +107,9 @@ export function MilestonePanel({
     }
   }
 
-  async function handleSubmit(values: SubmissionFormValues) {
-    try {
-      await submitMilestone.mutateAsync({
-        id: milestone._id,
-        projectId,
-        message: values.message,
-      });
-
-      toast.success("Submitted for review");
-      setShowSubmitForm(false);
-      submitForm.reset();
-    } catch (error) {
-      toast.error(errorMessage(error, "Unable to submit milestone"));
-    }
-  }
-
-  async function handleRequestChanges(values: SubmissionFormValues) {
+  async function handleRequestChanges(
+    values: SubmissionFormValues,
+  ) {
     try {
       await requestChanges.mutateAsync({
         id: milestone._id,
@@ -132,10 +118,13 @@ export function MilestonePanel({
       });
 
       toast.success("Changes requested");
+
       setShowChangesForm(false);
       changesForm.reset();
     } catch (error) {
-      toast.error(errorMessage(error, "Unable to request changes"));
+      toast.error(
+        errorMessage(error, "Unable to request changes"),
+      );
     }
   }
 
@@ -152,9 +141,13 @@ export function MilestonePanel({
         projectId,
       });
 
-      toast.success("Milestone approved and payment released");
+      toast.success(
+        "Milestone approved and payment released",
+      );
     } catch (error) {
-      toast.error(errorMessage(error, "Unable to approve milestone"));
+      toast.error(
+        errorMessage(error, "Unable to approve milestone"),
+      );
     }
   }
 
@@ -173,22 +166,31 @@ export function MilestonePanel({
 
       toast.success("Milestone rejected");
     } catch (error) {
-      toast.error(errorMessage(error, "Unable to reject milestone"));
+      toast.error(
+        errorMessage(error, "Unable to reject milestone"),
+      );
     }
   }
 
-  async function handleOpenDispute(values: DisputeFormValues) {
+  async function handleOpenDispute(
+    values: DisputeFormValues,
+  ) {
     try {
       await openDispute.mutateAsync({
         milestoneId: milestone._id,
         data: values,
       });
 
-      toast.success("Dispute opened — our team will review it shortly");
+      toast.success(
+        "Dispute opened — our team will review it shortly",
+      );
+
       setShowDisputeForm(false);
       disputeForm.reset();
     } catch (error) {
-      toast.error(errorMessage(error, "Unable to open dispute"));
+      toast.error(
+        errorMessage(error, "Unable to open dispute"),
+      );
     }
   }
 
@@ -196,198 +198,228 @@ export function MilestonePanel({
     (role === "CLIENT" || role === "FREELANCER") &&
     DISPUTABLE_STATUSES.includes(milestone.status);
 
+  const isFreelancer = role === "FREELANCER";
+
   return (
     <MilestoneCard milestone={milestone}>
       <div className="space-y-4">
-        {/* PENDING: client funds the milestone */}
-        {milestone.status === "PENDING" && role === "CLIENT" && (
-          <Button
-            size="sm"
-            onClick={handleFund}
-            disabled={initializePayment.isPending}
-          >
-            {initializePayment.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Fund milestone
-          </Button>
-        )}
-
-        {milestone.status === "PENDING" && role === "FREELANCER" && (
-          <p className="text-sm text-zinc-500">
-            Waiting for the client to fund this milestone.
-          </p>
-        )}
-
-        {/* FUNDED: freelancer starts work */}
-        {milestone.status === "FUNDED" && role === "FREELANCER" && (
-          <Button
-            size="sm"
-            onClick={handleStart}
-            disabled={startMilestone.isPending}
-          >
-            {startMilestone.isPending && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            Start work
-          </Button>
-        )}
-
-        {milestone.status === "FUNDED" && role === "CLIENT" && (
-          <p className="text-sm text-zinc-500">
-            Milestone is funded and held in escrow. Waiting for the
-            freelancer to start.
-          </p>
-        )}
-
-        {/* IN_PROGRESS / REVISION_REQUESTED: freelancer submits work */}
-        {(milestone.status === "IN_PROGRESS" ||
-          milestone.status === "REVISION_REQUESTED") &&
-          role === "FREELANCER" &&
-          (showSubmitForm ? (
-            <form
-              onSubmit={submitForm.handleSubmit(handleSubmit)}
-              className="space-y-3"
+        {/* =====================================================
+            PENDING: CLIENT FUNDS THE MILESTONE
+        ====================================================== */}
+        {milestone.status === "PENDING" &&
+          role === "CLIENT" && (
+            <Button
+              size="sm"
+              onClick={handleFund}
+              disabled={initializePayment.isPending}
             >
-              <Textarea
-                placeholder="Describe what you're submitting..."
-                {...submitForm.register("message")}
-              />
+              {initializePayment.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
 
-              {submitForm.formState.errors.message && (
-                <p className="text-xs text-red-600">
-                  {submitForm.formState.errors.message.message}
+              Fund milestone
+            </Button>
+          )}
+
+        {milestone.status === "PENDING" &&
+          role === "FREELANCER" && (
+            <p className="text-sm text-zinc-500">
+              Waiting for the client to fund this milestone.
+            </p>
+          )}
+
+        {/* =====================================================
+            FUNDED: FREELANCER STARTS WORK
+        ====================================================== */}
+        {milestone.status === "FUNDED" &&
+          role === "FREELANCER" && (
+            <Button
+              size="sm"
+              onClick={handleStart}
+              disabled={startMilestone.isPending}
+            >
+              {startMilestone.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+
+              Start work
+            </Button>
+          )}
+
+        {milestone.status === "FUNDED" &&
+          role === "CLIENT" && (
+            <p className="text-sm text-zinc-500">
+              Milestone is funded and held in escrow. Waiting
+              for the freelancer to start.
+            </p>
+          )}
+
+        {/* =====================================================
+            IN_PROGRESS / REVISION_REQUESTED:
+            FREELANCER SUBMITS DELIVERABLE
+        ====================================================== */}
+
+        {isFreelancer &&
+          (
+            milestone.status === "IN_PROGRESS" ||
+            milestone.status === "REVISION_REQUESTED"
+          ) && (
+            <DeliverableSubmission
+              milestoneId={milestone._id}
+              projectId={projectId}
+            />
+          )}
+
+        {/* =====================================================
+            CLIENT VIEW WHILE MILESTONE IS IN PROGRESS
+        ====================================================== */}
+
+        {milestone.status === "IN_PROGRESS" &&
+          role === "CLIENT" && (
+            <p className="text-sm text-zinc-500">
+              The freelancer is working on this milestone.
+            </p>
+          )}
+
+        {/* =====================================================
+            CLIENT VIEW WHILE REVISION IS REQUESTED
+        ====================================================== */}
+
+        {milestone.status === "REVISION_REQUESTED" &&
+          role === "CLIENT" && (
+            <p className="text-sm text-zinc-500">
+              Waiting for the freelancer to resubmit after
+              your requested changes.
+            </p>
+          )}
+
+        {/* =====================================================
+            SUBMITTED: CLIENT REVIEWS DELIVERABLE
+        ====================================================== */}
+
+        {milestone.status === "SUBMITTED" &&
+          role === "CLIENT" && (
+            <div className="space-y-3">
+              {milestone.submissionNote && (
+                <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600">
+                  {milestone.submissionNote}
                 </p>
               )}
 
-              <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={submitMilestone.isPending}
-                >
-                  {submitMilestone.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {showChangesForm ? (
+                <form
+                  onSubmit={changesForm.handleSubmit(
+                    handleRequestChanges,
                   )}
-                  Submit for review
-                </Button>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowSubmitForm(false)}
+                  className="space-y-3"
                 >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <Button size="sm" onClick={() => setShowSubmitForm(true)}>
-              Submit for review
-            </Button>
-          ))}
+                  <Textarea
+                    placeholder="What needs to change?"
+                    {...changesForm.register("message")}
+                  />
 
-        {milestone.status === "IN_PROGRESS" && role === "CLIENT" && (
-          <p className="text-sm text-zinc-500">
-            The freelancer is working on this milestone.
-          </p>
-        )}
+                  {changesForm.formState.errors.message && (
+                    <p className="text-xs text-red-600">
+                      {
+                        changesForm.formState.errors.message
+                          .message
+                      }
+                    </p>
+                  )}
 
-        {milestone.status === "REVISION_REQUESTED" && role === "CLIENT" && (
-          <p className="text-sm text-zinc-500">
-            Waiting for the freelancer to resubmit after your requested
-            changes.
-          </p>
-        )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="outline"
+                      disabled={requestChanges.isPending}
+                    >
+                      {requestChanges.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
 
-        {/* SUBMITTED: client approves or requests changes */}
-        {milestone.status === "SUBMITTED" && role === "CLIENT" && (
-          <div className="space-y-3">
-            {milestone.submissionNote && (
-              <p className="rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600">
-                {milestone.submissionNote}
-              </p>
-            )}
+                      Send request
+                    </Button>
 
-            {showChangesForm ? (
-              <form
-                onSubmit={changesForm.handleSubmit(handleRequestChanges)}
-                className="space-y-3"
-              >
-                <Textarea
-                  placeholder="What needs to change?"
-                  {...changesForm.register("message")}
-                />
-
-                {changesForm.formState.errors.message && (
-                  <p className="text-xs text-red-600">
-                    {changesForm.formState.errors.message.message}
-                  </p>
-                )}
-
-                <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() =>
+                        setShowChangesForm(false)
+                      }
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex flex-wrap gap-2">
                   <Button
-                    type="submit"
                     size="sm"
-                    variant="outline"
-                    disabled={requestChanges.isPending}
+                    onClick={handleApprove}
+                    disabled={approveMilestone.isPending}
                   >
-                    {requestChanges.isPending && (
+                    {approveMilestone.isPending && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
-                    Send request
+
+                    Approve &amp; release payment
                   </Button>
 
                   <Button
-                    type="button"
                     size="sm"
-                    variant="ghost"
-                    onClick={() => setShowChangesForm(false)}
+                    variant="outline"
+                    onClick={() =>
+                      setShowChangesForm(true)
+                    }
                   >
-                    Cancel
+                    Request changes
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleReject}
+                    disabled={rejectMilestone.isPending}
+                  >
+                    {rejectMilestone.isPending && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+
+                    Reject
                   </Button>
                 </div>
-              </form>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleApprove}
-                  disabled={approveMilestone.isPending}
-                >
-                  {approveMilestone.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Approve &amp; release payment
-                </Button>
+              )}
+            </div>
+          )}
 
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowChangesForm(true)}
-                >
-                  Request changes
-                </Button>
+        {/* =====================================================
+            SUBMITTED: FREELANCER WAITING FOR CLIENT
+        ====================================================== */}
 
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  onClick={handleReject}
-                  disabled={rejectMilestone.isPending}
-                >
-                  Reject
-                </Button>
-              </div>
-            )}
-          </div>
+        {milestone.status === "SUBMITTED" &&
+          role === "FREELANCER" && (
+            <p className="text-sm text-zinc-500">
+              Submitted — waiting for client review.
+            </p>
+          )}
+
+        {/* =====================================================
+            SUBMISSION HISTORY
+        ====================================================== */}
+
+        {(milestone.status === "SUBMITTED" ||
+          milestone.status === "RELEASED" ||
+          milestone.status === "REVISION_REQUESTED") && (
+          <SubmissionHistory
+            milestoneId={milestone._id}
+          />
         )}
 
-        {milestone.status === "SUBMITTED" && role === "FREELANCER" && (
-          <p className="text-sm text-zinc-500">
-            Submitted — waiting for client review.
-          </p>
-        )}
+        {/* =====================================================
+            RELEASED
+        ====================================================== */}
 
         {milestone.status === "RELEASED" && (
           <p className="text-sm font-medium text-emerald-600">
@@ -395,18 +427,36 @@ export function MilestonePanel({
           </p>
         )}
 
+        {/* =====================================================
+            DISPUTED
+        ====================================================== */}
+
         {milestone.status === "DISPUTED" && (
           <p className="text-sm font-medium text-orange-600">
             This milestone is under dispute.
           </p>
         )}
 
-        {/* Dispute action, available to either party while work is live */}
+        {/* =====================================================
+            RECEIPT
+        ====================================================== */}
+
+        <ReceiptButton
+          milestone={milestone}
+          role={role}
+        />
+
+        {/* =====================================================
+            DISPUTE ACTION
+        ====================================================== */}
+
         {canDispute && (
           <div className="border-t pt-3">
             {showDisputeForm ? (
               <form
-                onSubmit={disputeForm.handleSubmit(handleOpenDispute)}
+                onSubmit={disputeForm.handleSubmit(
+                  handleOpenDispute,
+                )}
                 className="space-y-3"
               >
                 <select
@@ -417,8 +467,12 @@ export function MilestonePanel({
                   <option value="" disabled>
                     Select a reason
                   </option>
+
                   {DISPUTE_REASONS.map((reason) => (
-                    <option key={reason.value} value={reason.value}>
+                    <option
+                      key={reason.value}
+                      value={reason.value}
+                    >
                       {reason.label}
                     </option>
                   ))}
@@ -437,7 +491,10 @@ export function MilestonePanel({
 
                 {disputeForm.formState.errors.description && (
                   <p className="text-xs text-red-600">
-                    {disputeForm.formState.errors.description.message}
+                    {
+                      disputeForm.formState.errors
+                        .description.message
+                    }
                   </p>
                 )}
 
@@ -451,6 +508,7 @@ export function MilestonePanel({
                     {openDispute.isPending && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
+
                     Open dispute
                   </Button>
 
@@ -458,7 +516,9 @@ export function MilestonePanel({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    onClick={() => setShowDisputeForm(false)}
+                    onClick={() =>
+                      setShowDisputeForm(false)
+                    }
                   >
                     Cancel
                   </Button>
@@ -469,7 +529,9 @@ export function MilestonePanel({
                 size="sm"
                 variant="link"
                 className="h-auto p-0 text-zinc-500"
-                onClick={() => setShowDisputeForm(true)}
+                onClick={() =>
+                  setShowDisputeForm(true)
+                }
               >
                 Report a problem with this milestone
               </Button>
@@ -480,3 +542,4 @@ export function MilestonePanel({
     </MilestoneCard>
   );
 }
+

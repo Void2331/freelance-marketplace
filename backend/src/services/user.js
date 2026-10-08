@@ -1,6 +1,10 @@
 const AppError = require("../utils/AppError");
 const User = require("../models/user.js");
 const Review = require("../models/review.js");
+const {
+  getTrustScore,
+  getTrustScores,
+} = require("./trustScore.js");
 
 /*
   Fields that are safe to show to anyone
@@ -44,7 +48,14 @@ const getPublicProfile = async (userId) => {
     throw new AppError("User not found", 404);
   }
 
-  return user;
+  const profile = user.toObject();
+
+  // Trust only makes sense for freelancers.
+  if (user.role === "FREELANCER") {
+    profile.trust = await getTrustScore(user._id);
+  }
+
+  return profile;
 };
 
 /*
@@ -97,8 +108,22 @@ const listFreelancers = async (filters = {}) => {
     User.countDocuments(query),
   ]);
 
+  /*
+  --------------------------------------------------
+  GET TRUST SCORES FOR ALL FREELANCERS
+  --------------------------------------------------
+  */
+  const trust = await getTrustScores(
+    freelancers.map(
+      (freelancer) => freelancer._id
+    )
+  );
+
   return {
-    freelancers,
+    freelancers: freelancers.map((freelancer) => ({
+      ...freelancer.toObject(),
+      trust: trust[String(freelancer._id)],
+    })),
     pagination: {
       page,
       limit,
