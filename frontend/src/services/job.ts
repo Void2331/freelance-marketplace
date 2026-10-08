@@ -1,6 +1,6 @@
 
 import { api } from "./api";
-import { Job } from "@/types/job.ts";
+import type { Job } from "@/types/job";
 
 
 interface JobResponse {
@@ -109,11 +109,25 @@ export async function deleteJob(
 ): Promise<void> {
   await api.delete(`/jobs/${id}`);
 }
+interface AdminDeleteJobResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    deleted?: boolean;
+  };
+}
 
 export async function adminDeleteJob(
   id: string,
-): Promise<void> {
-  await api.delete(`/jobs/admin/${id}`);
+): Promise<{ deleted: boolean }> {
+  const response =
+    await api.delete<AdminDeleteJobResponse>(
+      `/jobs/admin/${id}`,
+    );
+
+  return {
+    deleted: response.data.data?.deleted ?? true,
+  };
 }
 
 // Admin only: every job regardless of status.
